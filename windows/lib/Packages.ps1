@@ -337,3 +337,258 @@ function Uninstall-Package {
         return $false
     }
 }
+
+# ============================================================================
+# DEPENDENCY RESOLUTION
+# ============================================================================
+
+<#
+.SYNOPSIS
+    Build a dependency graph from package list
+.PARAMETER Packages
+    Array of package objects
+#>
+function Build-DependencyGraph {
+    param([Object[]] $Packages)
+    
+    Write-Log "Building dependency graph..." "INFO"
+    
+    $graph = @{}
+    
+    foreach ($package in $Packages) {
+        $graph[$package.Name] = @{
+            Package = $package
+            Dependencies = $package.Dependencies -split "," | Where-Object { $_ } | ForEach-Object { $_.Trim() }
+            Conflicts = $package.Conflicts -split "," | Where-Object { $_ } | ForEach-Object { $_.Trim() }
+        }
+    }
+    
+    Write-Log "Dependency graph built with $($graph.Count) packages" "DEBUG"
+    return $graph
+}
+
+<#
+.SYNOPSIS
+    Resolve dependencies for a package
+.PARAMETER PackageName
+    Name of the package to resolve
+.PARAMETER Graph
+    Dependency graph from Build-DependencyGraph
+.PARAMETER Resolved
+    Internal parameter for recursion tracking
+#>
+function Resolve-PackageDependencies {
+    param(
+        [string] $PackageName,
+        [hashtable] $Graph,
+        [System.Collections.Generic.HashSet[string]] $Resolved = $null
+    )
+    
+    if ($null -eq $Resolved) {
+        $Resolved = New-Object System.Collections.Generic.HashSet[string]
+    }
+    
+    if ($Resolved.Contains($PackageName)) {
+        return $Resolved
+    }
+    
+    if (-not $Graph[$PackageName]) {
+        Write-Log "Package not found in graph: $PackageName" "WARN"
+        return $Resolved
+    }
+    
+    $Resolved.Add($PackageName) | Out-Null
+    
+    foreach ($dependency in $Graph[$PackageName].Dependencies) {
+        if ($Graph[$dependency]) {
+            Resolve-PackageDependencies -PackageName $dependency -Graph $Graph -Resolved $Resolved
+        } else {
+            Write-Log "Dependency not found: $dependency (required by $PackageName)" "WARN"
+        }
+    }
+    
+    return $Resolved
+}
+
+<#
+.SYNOPSIS
+    Detect conflicts between selected packages
+.PARAMETER Packages
+    Array of package objects to check
+.PARAMETER Graph
+    Dependency graph from Build-DependencyGraph
+#>
+function Detect-PackageConflicts {
+    param(
+        [Object[]] $Packages,
+        [hashtable] $Graph = $null
+    )
+    
+    Write-Log "Detecting package conflicts..." "INFO"
+    
+    if (-not $Graph) {
+        $Graph = Build-DependencyGraph $Packages
+    }
+    
+    $conflicts = @()
+    $packageNames = $Packages | Select-Object -ExpandProperty Name
+    
+    foreach ($package in $Packages) {
+        if (-not $Graph[$package.Name]) {
+            continue
+        }
+        
+        foreach ($conflict in $Graph[$package.Name].Conflicts) {
+            if ($packageNames -contains $conflict) {
+                $conflicts += @{
+                    Package1 = $package.Name
+                    Package2 = $conflict
+                    Severity = "ERROR"
+                }
+                Write-Log "✗ Conflict detected: $($package.Name) conflicts with $conflict" "ERROR"
+            }
+        }
+    }
+    
+    if ($conflicts.Count -eq 0) {
+        Write-Log "No package conflicts detected" "INFO"
+    } else {
+        Write-Log "$($conflicts.Count) conflict(s) detected" "WARN"
+    }
+    
+    return $conflicts
+}
+
+<#
+.SYNOPSIS
+    Order packages for installation based on dependencies
+.PARAMETER Packages
+    Array of package objects
+.PARAMETER Graph
+    Dependency graph from Build-DependencyGraph
+#>
+function Sort-PackagesByDependencies {
+    param(
+        [Object[]] $Packages,
+        [hashtable] $Graph = $null
+    )
+    
+    Write-Log "Sorting packages by dependencies..." "INFO"
+    
+    if (-not $Graph) {
+        $Graph = Build-DependencyGraph $Packages
+    }
+    
+    $sorted = @()
+    $processed = New-Object System.Collections.Generic.HashSet[string]
+    
+    function Add-PackageWithDependencies {
+        param([string] $PackageName)
+        
+        if ($processed.Contains($PackageName)) {
+            return
+        }
+        
+        if ($Graph[$PackageName]) {
+            foreach ($dep in $Graph[$PackageName].Dependencies) {
+                Add-PackageWithDependencies $dep
+            }
+        }
+        
+        $pkg = $Packages | Where-Object { $_.Name -eq $PackageName } | Select-Object -First 1
+        if ($pkg) {
+            $sorted += $pkg
+            $processed.Add($PackageName) | Out-Null
+        }
+    }
+    
+    foreach ($package in $Packages) {
+        Add-PackageWithDependencies $package.Name
+    }
+    
+    Write-Log "Packages sorted by dependencies" "DEBUG"
+    return $sorted
+}
+
+# ============================================================================
+# DRY-RUN & PREVIEW MODE
+# ============================================================================
+
+<#
+.SYNOPSIS
+    Preview what will be installed without actually installing
+.PARAMETER Packages
+    Array of package objects to preview
+.PARAMETER Profile
+    Installation profile name
+#>
+function Get-InstallationPreview {
+    param(
+        [Object[]] $Packages,
+        [string] $Profile = "standard"
+    )
+    
+    Write-Log "Generating installation preview for profile: $Profile" "INFO"
+    
+    $graph = Build-DependencyGraph $Packages
+    $conflicts = Detect-PackageConflicts $Packages $graph
+    $sorted = Sort-PackagesByDependencies $Packages $graph
+    
+    $preview = @{
+        Profile = $Profile
+        TotalPackages = $Packages.Count
+        PackageList = $sorted | Select-Object @{Name="Name"; Expression={$_.Name}}, @{Name="Manager"; Expression={if ($_.WingetId) {"winget"} else {"choco"}}}, @{Name="Category"; Expression={$_.Category}}
+        Dependencies = @()
+        Conflicts = $conflicts
+        ConflictCount = $conflicts.Count
+        EstimatedInstallTime = $sorted.Count * 30  # Rough estimate: 30s per package
+    }
+    
+    # Build dependency summary
+    foreach ($package in $sorted) {
+        if ($graph[$package.Name].Dependencies.Count -gt 0) {
+            $preview.Dependencies += @{
+                Package = $package.Name
+                DependsOn = $graph[$package.Name].Dependencies
+            }
+        }
+    }
+    
+    return $preview
+}
+
+<#
+.SYNOPSIS
+    Display installation preview in human-readable format
+#>
+function Show-InstallationPreview {
+    param([hashtable] $Preview)
+    
+    Write-Host "`nInstallation Preview" -ForegroundColor Cyan
+    Write-Host "===================" -ForegroundColor Cyan
+    Write-Host "Profile: $($Preview.Profile)" -ForegroundColor Yellow
+    Write-Host "Total packages: $($Preview.TotalPackages)" -ForegroundColor White
+    Write-Host "Estimated time: $(($Preview.EstimatedInstallTime / 60) | [math]::Round) minutes" -ForegroundColor White
+    
+    if ($Preview.ConflictCount -gt 0) {
+        Write-Host "`n⚠ WARNING: $($Preview.ConflictCount) conflict(s) detected!" -ForegroundColor Red
+        foreach ($conflict in $Preview.Conflicts) {
+            Write-Host "  - $($conflict.Package1) conflicts with $($conflict.Package2)" -ForegroundColor Red
+        }
+    }
+    
+    Write-Host "`nPackages to install (in order):" -ForegroundColor Yellow
+    $Preview.PackageList | ForEach-Object { 
+        Write-Host "  $($_.Name) [$($_.Manager)] ($($_.Category))" -ForegroundColor White
+    }
+    
+    if ($Preview.Dependencies.Count -gt 0) {
+        Write-Host "`nDependency graph:" -ForegroundColor Yellow
+        foreach ($dep in $Preview.Dependencies) {
+            Write-Host "  $($dep.Package) depends on: $($dep.DependsOn -join ', ')" -ForegroundColor Gray
+        }
+    }
+    
+    Write-Host "`n" -ForegroundColor White
+}
+

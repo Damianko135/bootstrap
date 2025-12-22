@@ -355,3 +355,158 @@ function Get-SystemInfo {
     
     return $info
 }
+
+# ============================================================================
+# CHECKPOINT & RECOVERY SYSTEM
+# ============================================================================
+
+$script:CheckpointState = @{
+    Directory = $null
+    CurrentCheckpoint = $null
+    Checkpoints = @()
+}
+
+<#
+.SYNOPSIS
+    Initialize the checkpoint recovery system
+.PARAMETER CheckpointDirectory
+    Directory to store checkpoint files
+#>
+function Initialize-CheckpointSystem {
+    param(
+        [string] $CheckpointDirectory = "$env:APPDATA/laptopAutomation/checkpoints"
+    )
+    
+    $script:CheckpointState.Directory = $CheckpointDirectory
+    
+    if (-not (Test-Path $CheckpointDirectory)) {
+        New-Item -ItemType Directory -Path $CheckpointDirectory -Force | Out-Null
+        Write-Log "Checkpoint directory created: $CheckpointDirectory" "DEBUG"
+    }
+    
+    # Load existing checkpoints
+    $script:CheckpointState.Checkpoints = Get-ChildItem $CheckpointDirectory -Filter "checkpoint_*.json" -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending
+    
+    Write-Log "Checkpoint system initialized. Stored checkpoints: $($script:CheckpointState.Checkpoints.Count)" "DEBUG"
+}
+
+<#
+.SYNOPSIS
+    Save a checkpoint at the current phase
+.PARAMETER Phase
+    Name of the current phase
+.PARAMETER Data
+    Data to save in the checkpoint
+#>
+function Save-Checkpoint {
+    param(
+        [string] $Phase,
+        [hashtable] $Data = @{}
+    )
+    
+    if (-not $script:CheckpointState.Directory) {
+        Write-Log "Checkpoint system not initialized" "WARN"
+        return $false
+    }
+    
+    $timestamp = Get-Date -Format "yyyyMMdd_HHmmss_fff"
+    $checkpointName = "checkpoint_${Phase}_${timestamp}.json"
+    $checkpointPath = Join-Path $script:CheckpointState.Directory $checkpointName
+    
+    $checkpointData = @{
+        Phase = $Phase
+        Timestamp = Get-Date
+        SystemInfo = Get-SystemInfo
+        Data = $Data
+        Status = "COMPLETED"
+    }
+    
+    try {
+        $checkpointData | ConvertTo-Json -Depth 10 | Set-Content $checkpointPath
+        $script:CheckpointState.CurrentCheckpoint = $checkpointName
+        Write-Log "Checkpoint saved: $Phase" "DEBUG"
+        return $true
+    } catch {
+        Write-Log "Failed to save checkpoint: $($_.Exception.Message)" "ERROR"
+        return $false
+    }
+}
+
+<#
+.SYNOPSIS
+    Get the last successful checkpoint
+#>
+function Get-LastCheckpoint {
+    if (-not $script:CheckpointState.Directory) {
+        return $null
+    }
+    
+    $lastCheckpoint = Get-ChildItem $script:CheckpointState.Directory -Filter "checkpoint_*.json" -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+    
+    if (-not $lastCheckpoint) {
+        return $null
+    }
+    
+    try {
+        $content = Get-Content $lastCheckpoint.FullName -Raw
+        return ConvertFrom-Json $content
+    } catch {
+        Write-Log "Failed to read checkpoint: $($_.Exception.Message)" "ERROR"
+        return $null
+    }
+}
+
+<#
+.SYNOPSIS
+    Get all checkpoint phases that have been completed
+#>
+function Get-CompletedPhases {
+    if (-not $script:CheckpointState.Directory) {
+        return @()
+    }
+    
+    $checkpoints = Get-ChildItem $script:CheckpointState.Directory -Filter "checkpoint_*.json" -ErrorAction SilentlyContinue
+    $phases = @()
+    
+    foreach ($checkpoint in $checkpoints) {
+        try {
+            $content = Get-Content $checkpoint.FullName -Raw
+            $data = ConvertFrom-Json $content
+            if ($data.Status -eq "COMPLETED" -and $phases -notcontains $data.Phase) {
+                $phases += $data.Phase
+            }
+        } catch {
+            Write-Log "Failed to read checkpoint file: $($checkpoint.FullName)" "WARN"
+        }
+    }
+    
+    return $phases | Sort-Object
+}
+
+<#
+.SYNOPSIS
+    Check if a specific phase has been completed
+#>
+function Test-PhaseCompleted {
+    param([string] $Phase)
+    
+    $completed = Get-CompletedPhases
+    return $Phase -in $completed
+}
+
+<#
+.SYNOPSIS
+    Clear all checkpoints (used when recovery is not needed)
+#>
+function Clear-Checkpoints {
+    if (-not $script:CheckpointState.Directory) {
+        return
+    }
+    
+    try {
+        Get-ChildItem $script:CheckpointState.Directory -Filter "checkpoint_*.json" -ErrorAction SilentlyContinue | Remove-Item -Force
+        Write-Log "All checkpoints cleared" "DEBUG"
+    } catch {
+        Write-Log "Failed to clear checkpoints: $($_.Exception.Message)" "WARN"
+    }
+}

@@ -6,7 +6,9 @@
     "command": "git",
     "profile": ["minimal", "standard", "complete"],
     "category": "versionControl",
-    "required": true
+    "required": true,
+    "dependencies": "",
+    "conflicts": ""
   },
   {
     "Name": "PowerShell 7",
@@ -15,7 +17,9 @@
     "command": "pwsh",
     "profile": ["minimal", "standard", "complete"],
     "category": "shell",
-    "required": true
+    "required": true,
+    "dependencies": "",
+    "conflicts": ""
   },
   {
     "Name": "Visual Studio Code",
@@ -23,35 +27,45 @@
     "chocoId": "vscode",
     "command": "code",
     "profile": ["minimal", "standard", "complete"],
-    "category": "ide"
+    "category": "ide",
+    "dependencies": "",
+    "conflicts": ""
   },
   {
     "Name": "Windows Terminal",
     "wingetId": "Microsoft.WindowsTerminal",
     "chocoId": "microsoft-windows-terminal",
     "profile": ["standard", "complete"],
-    "category": "shell"
+    "category": "shell",
+    "dependencies": "",
+    "conflicts": ""
   },
   {
     "Name": "PowerToys",
     "wingetId": "Microsoft.PowerToys",
     "chocoId": "powertoys",
     "profile": ["standard", "complete"],
-    "category": "utilities"
+    "category": "utilities",
+    "dependencies": "",
+    "conflicts": ""
   },
   {
     "Name": "7-Zip",
     "wingetId": "7zip.7zip",
     "chocoId": "7zip",
     "profile": ["standard", "complete"],
-    "category": "utilities"
+    "category": "utilities",
+    "dependencies": "",
+    "conflicts": ""
   },
   {
     "Name": "Mozilla Firefox",
     "wingetId": "Mozilla.Firefox",
     "chocoId": "firefox",
     "profile": ["standard", "complete"],
-    "category": "browser"
+    "category": "browser",
+    "dependencies": "",
+    "conflicts": ""
   },
   {
     "Name": "Node.js",
@@ -59,7 +73,9 @@
     "chocoId": "nodejs",
     "command": "node",
     "profile": ["standard", "complete"],
-    "category": "sdk"
+    "category": "sdk",
+    "dependencies": "",
+    "conflicts": ""
   },
   {
     "Name": ".NET SDK 10",
@@ -67,35 +83,45 @@
     "chocoId": "dotnet-sdk",
     "command": "dotnet",
     "profile": ["standard", "complete"],
-    "category": "sdk"
+    "category": "sdk",
+    "dependencies": ".NET Runtime 10",
+    "conflicts": ""
   },
   {
     "Name": ".NET Runtime 10",
     "wingetId": "Microsoft.DotNet.Runtime.10",
     "chocoId": "dotnet-runtime",
     "profile": ["standard", "complete"],
-    "category": "sdk"
+    "category": "sdk",
+    "dependencies": "",
+    "conflicts": ""
   },
   {
     "Name": ".NET Desktop Runtime 10",
     "wingetId": "Microsoft.DotNet.DesktopRuntime.10",
     "chocoId": "dotnet-desktopruntime",
     "profile": ["standard", "complete"],
-    "category": "sdk"
+    "category": "sdk",
+    "dependencies": ".NET Runtime 10",
+    "conflicts": ""
   },
   {
     "Name": "Docker Desktop",
     "wingetId": "Docker.DockerDesktop",
     "chocoId": "docker-desktop",
     "profile": ["standard", "complete"],
-    "category": "containerization"
+    "category": "containerization",
+    "dependencies": "",
+    "conflicts": ""
   },
   {
     "Name": "GitHub Desktop",
     "wingetId": "GitHub.GitHubDesktop",
     "chocoId": "github-desktop",
     "profile": ["standard", "complete"],
-    "category": "versionControl"
+    "category": "versionControl",
+    "dependencies": "Git",
+    "conflicts": ""
   },
   {
     "Name": "Go",
@@ -103,7 +129,9 @@
     "chocoId": "go",
     "command": "go",
     "profile": ["complete"],
-    "category": "sdk"
+    "category": "sdk",
+    "dependencies": "",
+    "conflicts": ""
   },
   {
     "Name": "GoLand",
@@ -111,7 +139,9 @@
     "chocoId": "goland",
     "command": "goland",
     "profile": ["complete"],
-    "category": "ide"
+    "category": "ide",
+    "dependencies": "Go",
+    "conflicts": ""
   },
   {
     "Name": "Act GH Runner",
@@ -119,34 +149,44 @@
     "chocoId": "act-cli",
     "command": "act",
     "profile": ["standard", "complete"],
-    "category": "devOps"
+    "category": "devOps",
+    "dependencies": "Docker Desktop",
+    "conflicts": ""
   },
   {
     "Name": "OpenVPN",
     "wingetId": "OpenVPNTechnologies.OpenVPN",
     "chocoId": "openvpn",
     "profile": ["standard", "complete"],
-    "category": "security"
+    "category": "security",
+    "dependencies": "",
+    "conflicts": ""
   },
   {
     "Name": "Microsoft Teams",
     "wingetId": "Microsoft.Teams",
     "chocoId": "microsoft-teams",
     "profile": ["standard", "complete"],
-    "category": "communication"
+    "category": "communication",
+    "dependencies": "",
+    "conflicts": "Discord"
   },
   {
     "Name": "Discord",
     "wingetId": "Discord.Discord",
     "chocoId": "discord",
     "profile": ["standard", "complete", "gaming"],
-    "category": "communication"
+    "category": "communication",
+    "dependencies": "",
+    "conflicts": "Microsoft Teams"
   },
   {
     "Name": "Steam",
     "wingetId": "Valve.Steam",
     "chocoId": "steam",
     "profile": ["gaming", "complete"],
-    "category": "gaming"
+    "category": "gaming",
+    "dependencies": "",
+    "conflicts": ""
   }
 ]

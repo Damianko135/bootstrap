@@ -1,21 +1,24 @@
 #!/usr/bin/env pwsh
-# Bootstrap Script for Windows Laptop Automation
+# Bootstrap Script for Windows Laptop Automation v2.1
 # Author: Damian Korver
-# Description: Downloads the latest release and runs the setup script
-# This script is designed to be run in PowerShell 5.1 or later.
+# Description: Downloads the latest release and runs the setup orchestrator
+# This is the unified entry point for laptop automation setup
 # Use the following command to run it on a fresh Windows installation:
 # Aliases: IWR (Invoke-WebRequest); IEX (Invoke-Expression)
 # iwr "https://raw.githubusercontent.com/Damianko135/Damianko135/main/laptopAutomation/windows/bootstrap.ps1" -OutFile "$env:TEMP\bootstrap.ps1"; powershell -nop -ep Bypass -f "$env:TEMP\bootstrap.ps1"
-# Or use this one-liner:
-# iwr "https://raw.githubusercontent.com/Damianko135/Damianko135/main/laptopAutomation/windows/bootstrap.ps1" | iex
-
 
 #Requires -Version 5.1
 
 param (
+    [ValidateSet("minimal", "standard", "complete", "gaming")] $Profile = "standard",
     [switch] $SkipPackages,
     [switch] $SkipProfile,
+    [switch] $SkipValidation,
     [switch] $Force,
+    [switch] $Recover,
+    [switch] $Repair,
+    [switch] $DryRun,
+    [switch] $Local,
     [string] $DownloadPath = $env:TEMP
 )
 
@@ -23,72 +26,100 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 # Logging function
-# Parameters:
-#   - Message: The log message to display.
 function Write-Log {
-    param([string]$Message)
+    param([string]$Message, [string]$Level = "INFO")
     $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-    $formatted = "[$timestamp] $Message"
-    Write-Information $formatted -InformationAction Continue
+    $formatted = "[$timestamp] [$Level] $Message"
+    $colors = @{ "ERROR" = "Red"; "WARN" = "Yellow"; "INFO" = "White"; "SUCCESS" = "Green" }
+    Write-Host $formatted -ForegroundColor $colors[$Level]
 }
 
-# Set the GitHub repository owner (username or organization)
-$repoOwner = "Damianko135"
-# Set the GitHub repository name
-$repoName = "Damianko135"
-$apiUrl = "https://api.github.com/repos/$repoOwner/$repoName/releases/latest"
-# NOTE: If the repository owner and name differ, update these variables accordingly.
+Write-Log "Windows Laptop Automation Bootstrap v2.1 - Unified Entry Point" "INFO"
+Write-Log "========================================================" "INFO"
 
-Write-Log "Bootstrap: Windows Laptop Automation Setup"
-Write-Log "Repository: $repoOwner/$repoName"
+# Check if running as administrator
+$currentUser = [Security.Principal.WindowsIdentity]::GetCurrent()
+$principal = New-Object Security.Principal.WindowsPrincipal($currentUser)
+if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+    Write-Log "ERROR: This script requires administrator privileges" "ERROR"
+    Write-Log "Please run PowerShell as Administrator" "ERROR"
+    exit 1
+}
 
 try {
-    # Get latest release information
-    Write-Log "Fetching latest release information..."
-    $latestRelease = Invoke-RestMethod -Uri $apiUrl -Headers @{ "User-Agent" = "PowerShell-Bootstrap" }
+    # If -Local flag, use local orchestrator
+    if ($Local) {
+        Write-Log "Using local orchestrator mode" "INFO"
+        
+        $localOrchestratorPath = Join-Path $PSScriptRoot "orchestrator.ps1"
+        if (-not (Test-Path $localOrchestratorPath)) {
+            Write-Log "Local orchestrator not found: $localOrchestratorPath" "ERROR"
+            exit 1
+        }
+        
+        Write-Log "Executing local orchestrator: $localOrchestratorPath" "INFO"
+        
+        $arguments = @("-Profile", $Profile)
+        if ($SkipPackages) { $arguments += "-SkipPackages" }
+        if ($SkipProfile) { $arguments += "-SkipProfile" }
+        if ($SkipValidation) { $arguments += "-SkipValidation" }
+        if ($Force) { $arguments += "-Force" }
+        if ($Recover) { $arguments += "-Recover" }
+        if ($Repair) { $arguments += "-Repair" }
+        if ($DryRun) { $arguments += "-DryRun" }
+        
+        & $localOrchestratorPath @arguments
+        exit $LASTEXITCODE
+    }
     
+    # Download orchestrator from GitHub
+    Write-Log "Fetching latest release from GitHub..." "INFO"
+    
+    $repoOwner = "Damianko135"
+    $repoName = "Damianko135"
+    $apiUrl = "https://api.github.com/repos/$repoOwner/$repoName/releases/latest"
+    
+    $latestRelease = Invoke-RestMethod -Uri $apiUrl -Headers @{ "User-Agent" = "PowerShell-Bootstrap" }
     $tagName = $latestRelease.tag_name
     $releaseName = $latestRelease.name
-    Write-Log "Latest release: $releaseName ($tagName)"
     
-    # Find the Windows automation zip asset
-    $windowsAsset = $latestRelease.assets | Where-Object { $_.name -like "*Bootstrap*" }
+    Write-Log "Latest release: $releaseName ($tagName)" "INFO"
     
-    if (-not $windowsAsset) {
-        # Fallback to any zip asset
-        $windowsAsset = $latestRelease.assets | Where-Object { $_.name -like "*.zip" } | Select-Object -First 1
-    }
+    # Find the main zip asset
+    $windowsAsset = $latestRelease.assets | Where-Object { $_.name -like "*Bootstrap*" -or $_.name -like "*.zip" } | Select-Object -First 1
     
     if (-not $windowsAsset) {
-        Write-Log "No suitable zip asset found in release. Available assets:"
-        $latestRelease.assets | ForEach-Object { Write-Log "  - $($_.name)" }
-        throw "No zip asset found in the latest release"
+        Write-Log "No suitable asset found in release" "ERROR"
+        Write-Log "Available assets:" "INFO"
+        $latestRelease.assets | ForEach-Object { Write-Log "  - $($_.name)" "INFO" }
+        exit 1
     }
     
-    # Use the release asset download URL
     $downloadUrl = $windowsAsset.browser_download_url
     $zipFileName = $windowsAsset.name
     $zipFilePath = Join-Path $DownloadPath $zipFileName
+    $extractPath = Join-Path $DownloadPath "laptop-automation-v2.1"
     
-    Write-Log "Selected asset: $($windowsAsset.name)"
+    Write-Log "Asset: $zipFileName" "INFO"
+    Write-Log "Downloading from: $downloadUrl" "INFO"
     
-    # Download with better compatibility
-    Write-Log "Downloading release from: $downloadUrl"
-    Write-Log "Saving to: $zipFilePath"
-    
-    # Remove existing zip if it exists
+    # Clean up existing files
     if (Test-Path $zipFilePath) {
-        Write-Log "Removing existing zip file..."
+        Write-Log "Removing existing zip file..." "INFO"
         Remove-Item $zipFilePath -Force
     }
+    if (Test-Path $extractPath) {
+        Write-Log "Removing existing extraction directory..." "INFO"
+        Remove-Item $extractPath -Recurse -Force
+    }
     
-    # Use Invoke-WebRequest for better PowerShell 5.1 compatibility
+    # Download the zip file
+    Write-Log "Downloading..." "INFO"
+    
     try {
         if ($PSVersionTable.PSVersion.Major -ge 6) {
-            # PowerShell 6+ method
             Invoke-WebRequest -Uri $downloadUrl -OutFile $zipFilePath -UseBasicParsing
         } else {
-            # PowerShell 5.1 method - disable progress bar for performance
             $oldProgressPreference = $ProgressPreference
             $ProgressPreference = 'SilentlyContinue'
             try {
@@ -98,8 +129,7 @@ try {
             }
         }
     } catch {
-        # Fallback to WebClient if Invoke-WebRequest fails
-        Write-Log "Invoke-WebRequest failed, trying WebClient..."
+        Write-Log "Invoke-WebRequest failed, trying WebClient..." "WARN"
         $webClient = New-Object System.Net.WebClient
         $webClient.DownloadFile($downloadUrl, $zipFilePath)
     }
@@ -108,91 +138,77 @@ try {
         throw "Failed to download the release zip file"
     }
     
-    Write-Log "Download completed successfully"
+    Write-Log "Download completed" "INFO"
     
     # Extract the zip file
-    $extractPath = Join-Path $DownloadPath "laptop-automation-temp"
+    Write-Log "Extracting files..." "INFO"
     
-    # Remove existing extraction directory
-    if (Test-Path $extractPath) {
-        Write-Log "Removing existing extraction directory..."
-        Remove-Item $extractPath -Recurse -Force
-    }
-    
-    Write-Log "Extracting to: $extractPath"
-    
-    # Use Expand-Archive with PowerShell 5.1+ compatibility
     if (Get-Command Expand-Archive -ErrorAction SilentlyContinue) {
         Expand-Archive -Path $zipFilePath -DestinationPath $extractPath -Force
     } else {
-        # Fallback for very old PowerShell versions
-        Write-Log "Expand-Archive not available, using .NET extraction..."
+        Write-Log "Using .NET extraction..." "DEBUG"
         if (-not ("System.IO.Compression.ZipFile" -as [type])) {
             Add-Type -AssemblyName System.IO.Compression.FileSystem
         }
         [System.IO.Compression.ZipFile]::ExtractToDirectory($zipFilePath, $extractPath)
     }
     
-    # Find the setup script (look for it in the extracted contents)
-    Write-Log "Searching for setup.ps1..."
-    $setupScript = Get-ChildItem $extractPath -Recurse -File -Filter "setup.ps1" | Select-Object -First 1
+    # Find the orchestrator script
+    Write-Log "Searching for orchestrator.ps1..." "INFO"
+    $orchestratorScript = Get-ChildItem $extractPath -Recurse -File -Filter "orchestrator.ps1" | Select-Object -First 1
     
-    if ($setupScript) {
-        $setupScriptPath = $setupScript.FullName
-        Write-Log "Found setup script: $setupScriptPath"
-    } else {
-        Write-Log "Setup script not found. Listing extracted contents:"
-        Get-ChildItem $extractPath -Recurse | ForEach-Object {
-            Write-Log "  $($_.FullName)"
-        }
-        throw "Could not find setup.ps1 in the extracted files"
+    if (-not $orchestratorScript) {
+        Write-Log "Orchestrator script not found in extracted files" "ERROR"
+        throw "Could not find orchestrator.ps1"
     }
     
-    # Build arguments for the setup script
-    $arguments = @()
+    $orchestratorPath = $orchestratorScript.FullName
+    Write-Log "Found orchestrator: $orchestratorPath" "INFO"
+    
+    # Build arguments for the orchestrator
+    $arguments = @("-Profile", $Profile)
     if ($SkipPackages) { $arguments += "-SkipPackages" }
     if ($SkipProfile) { $arguments += "-SkipProfile" }
+    if ($SkipValidation) { $arguments += "-SkipValidation" }
     if ($Force) { $arguments += "-Force" }
+    if ($Recover) { $arguments += "-Recover" }
+    if ($Repair) { $arguments += "-Repair" }
+    if ($DryRun) { $arguments += "-DryRun" }
     
-    # Run the setup script
-    Push-Location $extractPath
+    # Run the orchestrator
+    Write-Log "Executing orchestrator..." "INFO"
+    
+    $extractDir = Split-Path $orchestratorPath
+    Push-Location $extractDir
     try {
-        if ($arguments.Count -gt 0) {
-            & $setupScriptPath @arguments
-        } else {
-            & $setupScriptPath
-        }
-        $setupSucceeded = $?
+        & $orchestratorPath @arguments
+        $orchestratorSucceeded = $?
     } finally {
         Pop-Location
     }
     
-    if ($setupSucceeded) {
-        Write-Log "Setup completed successfully!"
+    if ($orchestratorSucceeded) {
+        Write-Log "Bootstrap completed successfully!" "SUCCESS"
     } else {
-        Write-Log "Setup script failed to complete successfully."
+        Write-Log "Orchestrator failed to complete" "ERROR"
         exit 1
     }
     
 } catch {
-    Write-Log "Bootstrap failed: $($_.Exception.Message)"
-    Write-Log "Error details: $($_.ScriptStackTrace)"
+    Write-Log "Bootstrap failed: $($_.Exception.Message)" "ERROR"
+    Write-Log "Error details: $($_.ScriptStackTrace)" "ERROR"
     exit 1
 } finally {
     # Cleanup downloaded files
     try {
         if (Test-Path $zipFilePath) {
-            Write-Log "Cleaning up downloaded zip file..."
+            Write-Log "Cleaning up temporary files..." "DEBUG"
             Remove-Item $zipFilePath -Force
         }
-        
         if (Test-Path $extractPath) {
-            Write-Log "Cleaning up extracted files..."
             Remove-Item $extractPath -Recurse -Force
         }
     } catch {
-        Write-Log "Warning: Could not clean up temporary files: $($_.Exception.Message)"
+        Write-Log "Warning: Could not clean up all temporary files" "WARN"
     }
 }
-
-Write-Log "Bootstrap completed!"

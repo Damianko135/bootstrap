@@ -12,9 +12,9 @@ param(
 
 try {
     if ($Local) {
-        & "$PSScriptRoot\windows\bootstrap-v2.ps1" @PSBoundParameters
+        & "$PSScriptRoot\windows\bootstrap.ps1" @PSBoundParameters
     } else {
-        $bootstrapUrl = "https://raw.githubusercontent.com/Damianko135/bootstrap/main/windows/bootstrap-v2.ps1"
+        $bootstrapUrl = "https://raw.githubusercontent.com/Damianko135/bootstrap/main/windows/bootstrap.ps1"
         $tempFile = [System.IO.Path]::GetTempFileName()
         Invoke-WebRequest -Uri $bootstrapUrl -OutFile $tempFile
         & $tempFile @PSBoundParameters

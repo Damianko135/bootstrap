@@ -10,6 +10,9 @@ param (
     [switch] $SkipProfile,
     [switch] $SkipValidation,
     [switch] $Force,
+    [switch] $Recover,
+    [switch] $Repair,
+    [switch] $DryRun,
     [string] $LogLevel = "INFO",
     [int] $MaxParallelInstalls = 3,
     [string] $ConfigPath = "$PSScriptRoot\config.json"
@@ -24,7 +27,7 @@ $ErrorActionPreference = "Stop"
 
 # Import all library modules
 $libPath = Join-Path $PSScriptRoot "lib"
-$modules = @("Core.ps1", "Packages.ps1", "System.ps1")
+$modules = @("Core.ps1", "Packages.ps1", "System.ps1", "Telemetry.ps1", "Validation.ps1", "Hooks.ps1")
 
 foreach ($module in $modules) {
     $modulePath = Join-Path $libPath $module
@@ -40,12 +43,33 @@ foreach ($module in $modules) {
 # Initialize logging
 Initialize-Logging -LogDirectory "$env:TEMP/laptopAutomation" -Level $LogLevel
 
+# Initialize checkpoint system
+Initialize-CheckpointSystem
+
+# Initialize telemetry
+Initialize-Metrics
+
+# Initialize hook system
+Initialize-HookSystem
+
 Write-Log "========================================================================" "INFO"
-Write-Log "LAPTOP AUTOMATION SETUP - ORCHESTRATOR" "INFO"
+Write-Log "LAPTOP AUTOMATION SETUP - ORCHESTRATOR v2.1" "INFO"
 Write-Log "========================================================================" "INFO"
 Write-Log "Profile: $Profile" "INFO"
 Write-Log "Config: $ConfigPath" "INFO"
 Write-Log "PowerShell Version: $($PSVersionTable.PSVersion)" "INFO"
+
+if ($DryRun) {
+    Write-Log "⚠ DRY-RUN MODE - No changes will be made" "WARN"
+}
+
+if ($Recover) {
+    Write-Log "⚠ RECOVERY MODE - Attempting to resume from last checkpoint" "WARN"
+}
+
+if ($Repair) {
+    Write-Log "⚠ REPAIR MODE - Will attempt to repair failed installations" "WARN"
+}
 
 # Load configuration
 $config = Get-JsonContent $ConfigPath
@@ -119,6 +143,12 @@ function Invoke-PreFlightChecks {
     }
     Write-Log "✓ Configuration files valid" "INFO"
     
+    # Save checkpoint
+    Save-Checkpoint -Phase "PreFlightChecks" -Data @{
+        Timestamp = Get-Date
+        AdminCheck = $true
+    }
+    
     Write-Log "Pre-flight checks completed successfully" "INFO"
     Write-Log "" "INFO"
 }
@@ -129,6 +159,7 @@ function Invoke-PreFlightChecks {
 
 function Invoke-SystemPreparation {
     Write-Log "PHASE 2: System Preparation" "INFO"
+    Start-MetricsPhase "SystemPreparation"
     
     Initialize-Progress -TotalSteps 4
     
@@ -148,6 +179,7 @@ function Invoke-SystemPreparation {
         
         if (-not (Install-PackageManager "choco")) {
             Write-Log "Failed to install Chocolatey" "ERROR"
+            Complete-MetricsPhase "SystemPreparation" "FAILED"
             exit 1
         }
     } else {
@@ -159,6 +191,13 @@ function Invoke-SystemPreparation {
     $sysInfo = Get-SystemInfo
     Write-Log "System: $($sysInfo.ComputerName) | OS: $($sysInfo.OSVersion)" "INFO"
     
+    # Save checkpoint
+    Save-Checkpoint -Phase "SystemPreparation" -Data @{
+        BackupFile = $backupFile
+        AvailableManagers = $availableManagers
+    }
+    
+    Complete-MetricsPhase "SystemPreparation" "SUCCESS"
     Write-Log "System preparation completed" "INFO"
     Write-Log "" "INFO"
 }
@@ -171,9 +210,11 @@ function Invoke-PackageInstallation {
     param([string] $Profile)
     
     Write-Log "PHASE 3: Package Installation (Profile: $Profile)" "INFO"
+    Start-MetricsPhase "PackageInstallation"
     
     if ($SkipPackages) {
         Write-Log "Skipping package installation (--SkipPackages flag)" "WARN"
+        Complete-MetricsPhase "PackageInstallation" "SKIPPED"
         return
     }
     
@@ -184,15 +225,43 @@ function Invoke-PackageInstallation {
     
     if ($packages.Count -eq 0) {
         Write-Log "No packages found for profile: $Profile" "WARN"
+        Complete-MetricsPhase "PackageInstallation" "SKIPPED"
         return
     }
+    
+    # Dependency resolution and conflict detection
+    $graph = Build-DependencyGraph $packages
+    $conflicts = Detect-PackageConflicts $packages $graph
+    
+    if ($conflicts.Count -gt 0) {
+        Write-Log "Package conflicts detected! Use --Force to override." "ERROR"
+        if (-not $Force) {
+            Complete-MetricsPhase "PackageInstallation" "FAILED"
+            exit 1
+        }
+    }
+    
+    # Sort packages by dependencies
+    $packages = Sort-PackagesByDependencies $packages $graph
+    
+    # Show preview if dry-run
+    if ($DryRun -or $config.packages.dryRunMode) {
+        $preview = Get-InstallationPreview -Packages $packages -Profile $Profile
+        Show-InstallationPreview $preview
+        Write-Log "Dry-run mode: no packages will be installed" "INFO"
+        Complete-MetricsPhase "PackageInstallation" "DRY_RUN"
+        return
+    }
+    
+    # Execute pre-installation hooks
+    Invoke-Hooks -HookName "PrePackageInstall" -Parameters @{Packages = $packages; Profile = $Profile}
     
     Initialize-Progress -TotalSteps $packages.Count
     
     Write-Log "Installing $($packages.Count) packages..." "INFO"
     $installationStartTime = Get-Date
     
-    # Install packages in parallel
+    # Install packages in parallel or sequentially
     if ($config.packages.enableParallelInstall) {
         Write-Log "Using parallel installation (max: $MaxParallelInstalls concurrent)" "INFO"
         $results = Install-PackagesBatch -Packages $packages -MaxParallel $MaxParallelInstalls
@@ -201,6 +270,8 @@ function Invoke-PackageInstallation {
         Write-Log "  Successful: $($results.Successful)" "INFO"
         Write-Log "  Failed: $($results.Failed)" "INFO"
         Write-Log "  Total: $($results.Total)" "INFO"
+        
+        Record-PackageMetric -PackageName "batch" -Status "SUCCESS" -Message "Batch: $($results.Successful)/$($results.Total) succeeded"
     } else {
         Write-Log "Installing packages sequentially..." "INFO"
         
@@ -212,17 +283,25 @@ function Invoke-PackageInstallation {
                 -WingetId $package.wingetId `
                 -ChocoId $package.chocoId `
                 -ValidateCommand $package.command
+            
+            if ($success) {
+                Record-PackageMetric -PackageName $package.Name -Status "SUCCESS"
+            } else {
+                Record-PackageMetric -PackageName $package.Name -Status "FAILED"
+            }
         }
     }
     
-    # Verify installations if enabled
-    if ($config.packages.validateInstallation) {
-        Update-Progress -Task "Verifying installations" -Increment
-        $verification = Verify-Installations -Packages $packages
-        Write-Log "Verification: $($verification.Passed) passed, $($verification.Failed) failed" "INFO"
+    # Execute post-installation hooks
+    Invoke-Hooks -HookName "PostPackageInstall" -Parameters @{Packages = $packages; Profile = $Profile}
+    
+    # Save checkpoint
+    Save-Checkpoint -Phase "PackageInstallation" -Data @{
+        Profile = $Profile
+        PackageCount = $packages.Count
     }
     
-    $duration = Measure-SetupPhase -Phase "Package Installation" -StartTime $installationStartTime
+    Complete-MetricsPhase "PackageInstallation" "SUCCESS"
     Write-Log "" "INFO"
 }
 
@@ -232,15 +311,15 @@ function Invoke-PackageInstallation {
 
 function Invoke-ProfileSetup {
     Write-Log "PHASE 4: PowerShell Profile Configuration" "INFO"
+    Start-MetricsPhase "ProfileSetup"
     
     if ($SkipProfile) {
         Write-Log "Skipping profile configuration (--SkipProfile flag)" "WARN"
+        Complete-MetricsPhase "ProfileSetup" "SKIPPED"
         return
     }
     
     Initialize-Progress -TotalSteps 3
-    
-    $profileStartTime = Get-Date
     
     # Update profile
     Update-Progress -Task "Updating PowerShell profile" -Increment
@@ -249,6 +328,7 @@ function Invoke-ProfileSetup {
     
     if (-not (Update-PowerShellProfile -ProfilePath $profilePath -ContentPath $contentPath)) {
         Write-Log "Failed to update PowerShell profile" "ERROR"
+        Complete-MetricsPhase "ProfileSetup" "FAILED"
         return
     }
     Write-Log "✓ Profile updated" "INFO"
@@ -267,64 +347,108 @@ function Invoke-ProfileSetup {
         Write-Log "✓ Shell aliases initialized" "INFO"
     }
     
-    $duration = Measure-SetupPhase -Phase "Profile Setup" -StartTime $profileStartTime
-    Write-Log "" "INFO"
-}
-
-# ============================================================================
-# PHASE 5: SYSTEM CONFIGURATION
-# ============================================================================
-
-function Invoke-SystemConfiguration {
-    Write-Log "PHASE 5: System Configuration" "INFO"
-    
-    Initialize-Progress -TotalSteps 3
-    
-    # Environment variables
-    Update-Progress -Task "Setting environment variables" -Increment
-    # Add custom environment setup here
-    Write-Log "✓ Environment variables configured" "INFO"
-    
-    # Windows features
-    Update-Progress -Task "Configuring Windows features" -Increment
-    # Add feature enablement here if needed
-    Write-Log "✓ Windows features configured" "INFO"
-    
-    # Application configuration
-    Update-Progress -Task "Applying application configurations" -Increment
-    # Apply Office config if exists
-    if (Test-Path "$PSScriptRoot\office-configuration.xml") {
-        Apply-ApplicationConfig -ConfigPath "$PSScriptRoot\office-configuration.xml" -ApplicationName "Office"
-        Write-Log "✓ Office configuration applied" "INFO"
+    # Save checkpoint
+    Save-Checkpoint -Phase "ProfileSetup" -Data @{
+        ProfilePath = $profilePath
     }
     
+    Complete-MetricsPhase "ProfileSetup" "SUCCESS"
     Write-Log "" "INFO"
 }
 
 # ============================================================================
-# PHASE 6: VERIFICATION & FINALIZATION
+# PHASE 5: VALIDATION & HEALTH CHECKS
 # ============================================================================
 
-function Invoke-Verification {
-    Write-Log "PHASE 6: Verification & Finalization" "INFO"
+function Invoke-PostInstallationValidation {
+    param([Object[]] $Packages)
+    
+    Write-Log "PHASE 5: Post-Installation Validation" "INFO"
+    Start-MetricsPhase "Validation"
+    
+    if ($SkipValidation) {
+        Write-Log "Skipping validation (--SkipValidation flag)" "WARN"
+        Complete-MetricsPhase "Validation" "SKIPPED"
+        return
+    }
+    
+    if (-not $config.validation.enablePostInstallValidation) {
+        Write-Log "Post-installation validation disabled in config" "DEBUG"
+        Complete-MetricsPhase "Validation" "SKIPPED"
+        return
+    }
+    
+    # Execute pre-validation hooks
+    Invoke-Hooks -HookName "PreValidation" -Parameters @{Packages = $Packages}
+    
+    Initialize-Progress -TotalSteps 2
+    
+    # Run comprehensive validation
+    Update-Progress -Task "Running comprehensive validation" -Increment
+    $validationResults = Invoke-FullValidation -Packages $Packages -StopOnError $config.validation.stopOnValidationError
+    
+    # Run repair if requested
+    if ($Repair -or $config.validation.repairFailedPackages) {
+        Update-Progress -Task "Attempting to repair failed installations" -Increment
+        if ($validationResults.PackageValidation.Failed -gt 0) {
+            Write-Log "Attempting repair for $($validationResults.PackageValidation.Failed) failed packages..." "INFO"
+            $repairResults = Repair-Installation -Packages $Packages -Profile $Profile
+            Write-Log "Repair results: $($repairResults.Repaired.Count) fixed, $($repairResults.Failed.Count) still failing" "INFO"
+        }
+    } else {
+        Update-Progress -Task "Validation complete" -Increment
+    }
+    
+    # Execute post-validation hooks
+    Invoke-Hooks -HookName "PostValidation" -Parameters @{ValidationResults = $validationResults}
+    
+    # Save checkpoint
+    Save-Checkpoint -Phase "Validation" -Data @{
+        ValidationStatus = $validationResults.OverallStatus
+        IssueCount = $validationResults.Issues.Count
+    }
+    
+    Complete-MetricsPhase "Validation" "SUCCESS"
+    Write-Log "" "INFO"
+}
+
+# ============================================================================
+# PHASE 6: FINALIZATION & REPORTING
+# ============================================================================
+
+function Invoke-Finalization {
+    Write-Log "PHASE 6: Finalization & Reporting" "INFO"
+    Start-MetricsPhase "Finalization"
     
     Initialize-Progress -TotalSteps 3
-    
-    # Health check
-    Update-Progress -Task "Running health checks" -Increment
-    Write-Log "✓ Health checks passed" "INFO"
     
     # Generate report
     Update-Progress -Task "Generating setup report" -Increment
-    $reportPath = New-SetupReport -LogFile $script:LogConfig.FilePath
+    $reportPath = Join-Path $config.telemetry.reportPath "setup_report_$(Get-Date -Format yyyyMMdd_HHmmss).json"
+    $report = Get-SetupReport -ReportPath $reportPath
     Write-Log "✓ Report generated: $reportPath" "INFO"
     
-    # Cleanup
-    Update-Progress -Task "Cleaning up" -Increment
-    Invoke-SystemCleanup
-    Write-Log "✓ Cleanup completed" "INFO"
+    # Send telemetry if enabled
+    Update-Progress -Task "Processing telemetry" -Increment
+    if ($config.telemetry.enableTelemetry) {
+        Send-Telemetry -Report $report -Endpoint $config.telemetry.telemetryEndpoint
+    }
     
-    Write-Log "" "INFO"
+    # Display summary
+    Update-Progress -Task "Displaying summary" -Increment
+    if ($config.notifications.showSummaryOnCompletion) {
+        Show-SetupSummary -Report $report
+    }
+    
+    # Save final checkpoint
+    Save-Checkpoint -Phase "Finalization" -Data @{
+        ReportPath = $reportPath
+        CompletedSuccessfully = $true
+    }
+    
+    Complete-MetricsPhase "Finalization" "SUCCESS"
+    
+    return $report
 }
 
 # ============================================================================
@@ -334,22 +458,73 @@ function Invoke-Verification {
 try {
     $setupStartTime = Get-Date
     
-    # Execute all phases
-    Invoke-PreFlightChecks
-    Invoke-SystemPreparation
-    Invoke-PackageInstallation -Profile $Profile
-    Invoke-ProfileSetup
-    Invoke-SystemConfiguration
-    Invoke-Verification
+    # Recovery mode: check if we should resume from last checkpoint
+    if ($Recover) {
+        $lastCheckpoint = Get-LastCheckpoint
+        if ($lastCheckpoint) {
+            Write-Log "Resuming from checkpoint: $($lastCheckpoint.Phase)" "INFO"
+            $completedPhases = Get-CompletedPhases
+            Write-Log "Previously completed phases: $($completedPhases -join ', ')" "INFO"
+        } else {
+            Write-Log "No previous checkpoint found, starting fresh" "WARN"
+        }
+    }
     
-    $totalDuration = Measure-SetupPhase -Phase "Total Setup" -StartTime $setupStartTime
+    # Execute pre-setup hooks
+    Invoke-Hooks -HookName "PreSetup" -Parameters @{Profile = $Profile}
+    
+    # Execute all phases (skip completed ones only in recovery mode)
+    if ($Recover -and (Test-PhaseCompleted "PreFlightChecks")) {
+        Write-Log "Skipping pre-flight checks (already completed)" "DEBUG"
+    } else {
+        Invoke-PreFlightChecks
+    }
+    
+    if ($Recover -and (Test-PhaseCompleted "SystemPreparation")) {
+        Write-Log "Skipping system preparation (already completed)" "DEBUG"
+    } else {
+        Invoke-SystemPreparation
+    }
+    
+    # Load package list for validation phase
+    $packages = Get-PackageList -JsonPath "$PSScriptRoot\packageList.json" -Profile $Profile
+    
+    if ($Recover -and (Test-PhaseCompleted "PackageInstallation")) {
+        Write-Log "Skipping package installation (already completed)" "DEBUG"
+    } else {
+        Invoke-PackageInstallation -Profile $Profile
+    }
+    
+    if ($Recover -and (Test-PhaseCompleted "ProfileSetup")) {
+        Write-Log "Skipping profile setup (already completed)" "DEBUG"
+    } else {
+        Invoke-ProfileSetup
+    }
+    
+    if ($Recover -and (Test-PhaseCompleted "Validation")) {
+        Write-Log "Skipping validation (already completed)" "DEBUG"
+    } else {
+        Invoke-PostInstallationValidation -Packages $packages
+    }
+    
+    # Execute post-setup hooks
+    Invoke-Hooks -HookName "PostSetup" -Parameters @{Profile = $Profile}
+    
+    # Finalization and reporting
+    $report = Invoke-Finalization
+    
+    # Clear checkpoints on successful completion
+    if (-not $Recover) {
+        Clear-Checkpoints
+    }
+    
+    $totalDuration = (Get-Date) - $setupStartTime
     
     Write-Log "========================================================================" "INFO"
     Write-Log "SETUP COMPLETED SUCCESSFULLY" "INFO"
     Write-Log "========================================================================" "INFO"
     Write-Log "Total time: $([math]::Round($totalDuration.TotalMinutes, 2)) minutes" "INFO"
     Write-Log "Log file: $($script:LogConfig.FilePath)" "INFO"
-    Write-Log "Report: $reportPath" "INFO"
     Write-Log "" "INFO"
     Write-Log "🎉 Your system is ready to use!" "INFO"
     
@@ -361,6 +536,9 @@ try {
     Write-Log "Error: $($_.Exception.Message)" "ERROR"
     Write-Log "Stack: $($_.ScriptStackTrace)" "ERROR"
     Write-Log "Log file: $($script:LogConfig.FilePath)" "ERROR"
+    Write-Log "" "ERROR"
+    Write-Log "To recover from this failure, run:" "INFO"
+    Write-Log "  powershell -nop -ep Bypass -f orchestrator.ps1 -Recover" "INFO"
     
     exit 1
 }

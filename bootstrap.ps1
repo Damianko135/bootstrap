@@ -49,8 +49,8 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 $ProgressPreference = 'SilentlyContinue'
 
-# Source shared functions
-. (Join-Path $PSScriptRoot 'functions.ps1')
+# Import shared functions module
+Import-Module (Join-Path $PSScriptRoot 'functions.psd1')
 
 # ============================
 # Constants

@@ -47,8 +47,8 @@ param (
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-# Source shared functions
-. (Join-Path $PSScriptRoot 'functions.ps1')
+# Import shared functions module
+Import-Module (Join-Path $PSScriptRoot 'functions.psd1')
 
 # ============================
 # Logging

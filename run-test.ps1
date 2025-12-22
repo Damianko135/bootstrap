@@ -82,35 +82,40 @@ Write-Log "Extraction completed successfully"
 
 # Run the test setup
 try {
-    # Find the orchestrator script in the extracted files
-    Write-Log "Searching for orchestrator.ps1..."
-    $orchestratorScript = Get-ChildItem $extractPath -Recurse -File -Filter "orchestrator.ps1" | Select-Object -First 1
+    # Find the setup script in the extracted files
+    Write-Log "Searching for setup.ps1..."
+    $setupScript = Get-ChildItem $extractPath -Recurse -File -Filter "setup.ps1" | Select-Object -First 1
 
-    if ($orchestratorScript) {
-        $orchestratorScriptPath = $orchestratorScript.FullName
-        Write-Log "Found orchestrator script: $orchestratorScriptPath"
+    if ($setupScript) {
+        $setupScriptPath = $setupScript.FullName
+        Write-Log "Found setup script: $setupScriptPath"
     } else {
-        Write-Log "Orchestrator script not found. Listing extracted contents:"
+        Write-Log "Setup script not found. Listing extracted contents:"
         Get-ChildItem $extractPath -Recurse | ForEach-Object {
             Write-Log "  $($_.FullName)"
         }
-        throw "Could not find orchestrator.ps1 in the extracted files"
+        throw "Could not find setup.ps1 in the extracted files"
     }
     
-    # Build arguments for the orchestrator script
-    $arguments = @("-Profile", "standard")
+    # Build arguments for the setup script
+    $arguments = @()
     if ($SkipPackages) { $arguments += "-SkipPackages" }
     if ($SkipProfile) { $arguments += "-SkipProfile" }
     if ($Force) { $arguments += "-Force" }
     
-    Write-Log "Arguments to pass to orchestrator.ps1: $($arguments -join ' ')"
+    Write-Log "Arguments to pass to setup.ps1: $($arguments -join ' ')"
     
-    # Run the orchestrator script
+    # Run the setup script
     Push-Location $extractPath
     try {
-        Write-Log "Running: & $orchestratorScriptPath $($arguments -join ' ')"
-        & $orchestratorScriptPath @arguments
-        $orchestratorSucceeded = $?
+        if ($arguments.Count -gt 0) {
+            Write-Log "Running: & $setupScriptPath $($arguments -join ' ')"
+            & $setupScriptPath @arguments
+        } else {
+            Write-Log "Running: & $setupScriptPath"
+            & $setupScriptPath
+        }
+        $setupSucceeded = $?
     } finally {
         Pop-Location
     }
@@ -118,7 +123,7 @@ try {
     if ($setupSucceeded) {
         Write-Log "Setup completed successfully!"
     } else {
-        Write-Log "Orchestrator script failed to complete successfully."
+        Write-Log "Setup script failed to complete successfully."
         exit 1
     }
     

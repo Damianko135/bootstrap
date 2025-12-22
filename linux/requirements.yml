@@ -1,6 +1,0 @@
----
-roles:
-  - name: geerlingguy.docker
-    version: latest
-  - name: dev-sec.ssh-hardening
-    version: latest

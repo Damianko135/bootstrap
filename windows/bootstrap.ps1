@@ -59,14 +59,14 @@ try {
         
         Write-Log "Executing local orchestrator: $localOrchestratorPath" "INFO"
         
-        $arguments = @("-Profile", $Profile)
-        if ($SkipPackages) { $arguments += "-SkipPackages" }
-        if ($SkipProfile) { $arguments += "-SkipProfile" }
-        if ($SkipValidation) { $arguments += "-SkipValidation" }
-        if ($Force) { $arguments += "-Force" }
-        if ($Recover) { $arguments += "-Recover" }
-        if ($Repair) { $arguments += "-Repair" }
-        if ($DryRun) { $arguments += "-DryRun" }
+        $arguments = @{Profile = $Profile}
+        if ($SkipPackages) { $arguments.SkipPackages = $true }
+        if ($SkipProfile) { $arguments.SkipProfile = $true }
+        if ($SkipValidation) { $arguments.SkipValidation = $true }
+        if ($Force) { $arguments.Force = $true }
+        if ($Recover) { $arguments.Recover = $true }
+        if ($Repair) { $arguments.Repair = $true }
+        if ($DryRun) { $arguments.DryRun = $true }
         
         & $localOrchestratorPath @arguments
         exit $LASTEXITCODE

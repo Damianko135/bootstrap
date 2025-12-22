@@ -9,7 +9,7 @@
 [![PowerShell](https://img.shields.io/badge/PowerShell-5391FE?style=for-the-badge&logo=powershell&logoColor=white)](https://docs.microsoft.com/powershell/)
 [![Bash](https://img.shields.io/badge/Bash-4EAA25?style=for-the-badge&logo=gnu-bash&logoColor=white)](https://www.gnu.org/software/bash/)
 
-> *"From zero to fully configured development environment in minutes!"*
+> _"From zero to fully configured development environment in minutes!"_
 
 </div>
 
@@ -57,12 +57,12 @@ Welcome to my **cross-platform laptop automation suite**! These scripts transfor
 
 <div align="center">
 
-| Platform | Status | Script | Features | Estimated Time |
-|:--------:|:------:|:------:|:--------:|:--------------:|
-| 🪟 **Windows 10/11** | ✅ Fully Supported | `setup.ps1` | Chocolatey, WSL2, Office | ~25 minutes |
-| 🐧 **Ubuntu 20.04+** | ✅ Fully Supported | `init.sh` | APT, Snap, Ansible | ~20 minutes |
-| 🐧 **Debian 11+** | ✅ Supported | `init.sh` | APT, Manual installs | ~25 minutes |
-| 🍎 **macOS** | 🚧 Planned | Coming Soon | Homebrew, App Store | TBD |
+|       Platform       |       Status       |   Script    |         Features         | Estimated Time |
+| :------------------: | :----------------: | :---------: | :----------------------: | :------------: |
+| 🪟 **Windows 10/11** | ✅ Fully Supported | `setup.ps1` | Chocolatey, WSL2, Office |  ~25 minutes   |
+| 🐧 **Ubuntu 20.04+** | ✅ Fully Supported |  `init.sh`  |    APT, Snap, Ansible    |  ~20 minutes   |
+|  🐧 **Debian 11+**   |    ✅ Supported    |  `init.sh`  |   APT, Manual installs   |  ~25 minutes   |
+|     🍎 **macOS**     |     🚧 Planned     | Coming Soon |   Homebrew, App Store    |      TBD       |
 
 </div>
 
@@ -75,12 +75,14 @@ Welcome to my **cross-platform laptop automation suite**! These scripts transfor
 Choose your platform and run the appropriate command:
 
 #### 🪟 Windows (PowerShell as Administrator)
+
 ```powershell
 # Download and execute Windows setup
 iex ((New-Object System.Net.WebClient).DownloadString('https://raw.githubusercontent.com/Damianko135/Damianko135/main/laptopAutomation/windows/bootstrap.ps1'))
 ```
 
 #### 🐧 Linux (Bash)
+
 ```bash
 # Download and execute Linux setup
 curl -fsSL https://raw.githubusercontent.com/Damianko135/Damianko135/main/laptopAutomation/linux/init.sh | bash
@@ -139,6 +141,7 @@ cd linux && chmod +x init.sh && ./init.sh
   ]
 }
 ```
+
 </details>
 
 <details>
@@ -158,6 +161,7 @@ cd linux && chmod +x init.sh && ./init.sh
   ]
 }
 ```
+
 </details>
 
 <details>
@@ -176,6 +180,7 @@ cd linux && chmod +x init.sh && ./init.sh
   ]
 }
 ```
+
 </details>
 
 ### ⚙️ Configuration Features
@@ -252,6 +257,7 @@ development_tools:
   - docker.io
   - docker-compose
 ```
+
 </details>
 
 <details>
@@ -259,7 +265,7 @@ development_tools:
 
 ```yaml
 desktop_apps:
-  - code                    # Visual Studio Code
+  - code # Visual Studio Code
   - firefox
   - chromium-browser
   - discord
@@ -269,6 +275,7 @@ desktop_apps:
   - gimp
   - obs-studio
 ```
+
 </details>
 
 ### ⚙️ Ansible Automation
@@ -323,6 +330,7 @@ The Linux setup uses Ansible for advanced configuration management:
 Edit the package lists to match your needs:
 
 #### Windows (`packageList.json`)
+
 ```json
 {
   "categories": {
@@ -338,6 +346,7 @@ Edit the package lists to match your needs:
 ```
 
 #### Linux (`requirements.yml`)
+
 ```yaml
 custom_packages:
   apt:
@@ -376,12 +385,12 @@ export BROWSER=firefox
 
 <div align="center">
 
-| Manager | Purpose | Example Usage |
-|:-------:|:--------|:--------------|
-| **🍫 Chocolatey** | Primary package manager | `choco install git` |
-| **🏪 Microsoft Store** | UWP applications | `winget install Microsoft.WindowsTerminal` |
-| **🔧 Scoop** | Command-line tools | `scoop install curl` |
-| **📦 npm** | Node.js packages | `npm install -g typescript` |
+|        Manager         | Purpose                 | Example Usage                              |
+| :--------------------: | :---------------------- | :----------------------------------------- |
+|   **🍫 Chocolatey**    | Primary package manager | `choco install git`                        |
+| **🏪 Microsoft Store** | UWP applications        | `winget install Microsoft.WindowsTerminal` |
+|      **🔧 Scoop**      | Command-line tools      | `scoop install curl`                       |
+|       **📦 npm**       | Node.js packages        | `npm install -g typescript`                |
 
 </div>
 
@@ -389,12 +398,12 @@ export BROWSER=firefox
 
 <div align="center">
 
-| Manager | Purpose | Example Usage |
-|:-------:|:--------|:--------------|
-| **📦 APT** | System packages | `apt install git` |
-| **📱 Snap** | Universal packages | `snap install code --classic` |
-| **📦 Flatpak** | Sandboxed apps | `flatpak install flathub org.gimp.GIMP` |
-| **🐍 pip** | Python packages | `pip install ansible` |
+|    Manager     | Purpose            | Example Usage                           |
+| :------------: | :----------------- | :-------------------------------------- |
+|   **📦 APT**   | System packages    | `apt install git`                       |
+|  **📱 Snap**   | Universal packages | `snap install code --classic`           |
+| **📦 Flatpak** | Sandboxed apps     | `flatpak install flathub org.gimp.GIMP` |
+|   **🐍 pip**   | Python packages    | `pip install ansible`                   |
 
 </div>
 
@@ -405,6 +414,7 @@ export BROWSER=firefox
 ### 🎯 Adding Custom Software
 
 #### Windows
+
 ```powershell
 # Add to packageList.json
 {
@@ -419,6 +429,7 @@ choco install your-software-name -y
 ```
 
 #### Linux
+
 ```bash
 # Add to setup.yml
 custom_packages:
@@ -469,10 +480,12 @@ fi
 **Error:** `Execution of scripts is disabled on this system`
 
 **Solution:**
+
 ```powershell
 # Run as Administrator
 Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 ```
+
 </details>
 
 <details>
@@ -481,6 +494,7 @@ Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 **Error:** Package installation fails or times out
 
 **Solutions:**
+
 ```bash
 # Update package managers
 # Windows
@@ -496,6 +510,7 @@ ping google.com
 ./setup.ps1 -Verbose  # Windows
 ./init.sh -v          # Linux
 ```
+
 </details>
 
 <details>
@@ -504,6 +519,7 @@ ping google.com
 **Error:** `Permission denied` during installation
 
 **Solutions:**
+
 ```bash
 # Ensure script is executable
 chmod +x init.sh
@@ -514,6 +530,7 @@ sudo ./init.sh
 # Check user permissions
 groups $USER
 ```
+
 </details>
 
 ### 🔧 Debug Mode
@@ -551,12 +568,12 @@ DEBUG=1 ./init.sh
 
 <div align="center">
 
-| 💡 **Tip** | 📝 **Description** | 🎯 **Benefit** |
-|:----------:|:-------------------|:---------------:|
-| **📋 Inventory First** | List current software before running | 🔍 Better planning |
-| **🧪 VM Testing** | Test scripts on virtual machines | 🛡️ Risk mitigation |
-| **📊 Log Everything** | Enable verbose logging for debugging | 🔧 Easier troubleshooting |
-| **🔄 Incremental Setup** | Run scripts in stages, not all at once | ⚡ Faster recovery |
+|        💡 **Tip**        | 📝 **Description**                     |      🎯 **Benefit**       |
+| :----------------------: | :------------------------------------- | :-----------------------: |
+|  **📋 Inventory First**  | List current software before running   |    🔍 Better planning     |
+|    **🧪 VM Testing**     | Test scripts on virtual machines       |    🛡️ Risk mitigation     |
+|  **📊 Log Everything**   | Enable verbose logging for debugging   | 🔧 Easier troubleshooting |
+| **🔄 Incremental Setup** | Run scripts in stages, not all at once |    ⚡ Faster recovery     |
 
 </div>
 
@@ -568,20 +585,20 @@ DEBUG=1 ./init.sh
 
 <div align="center">
 
-| Platform | Full Setup | Development Only | Productivity Only |
-|:--------:|:----------:|:----------------:|:-----------------:|
-| **🪟 Windows** | ~25 minutes | ~15 minutes | ~10 minutes |
-| **🐧 Ubuntu** | ~20 minutes | ~12 minutes | ~8 minutes |
-| **🐧 Debian** | ~25 minutes | ~15 minutes | ~10 minutes |
+|    Platform    | Full Setup  | Development Only | Productivity Only |
+| :------------: | :---------: | :--------------: | :---------------: |
+| **🪟 Windows** | ~25 minutes |   ~15 minutes    |    ~10 minutes    |
+| **🐧 Ubuntu**  | ~20 minutes |   ~12 minutes    |    ~8 minutes     |
+| **🐧 Debian**  | ~25 minutes |   ~15 minutes    |    ~10 minutes    |
 
-*Times may vary based on internet speed and system specifications*
+_Times may vary based on internet speed and system specifications_
 
 </div>
 
 ### 📈 Success Rates
 
 - **✅ Windows 10/11**: 95% success rate
-- **✅ Ubuntu 20.04+**: 98% success rate  
+- **✅ Ubuntu 20.04+**: 98% success rate
 - **✅ Debian 11+**: 92% success rate
 
 ---
@@ -594,6 +611,6 @@ DEBUG=1 ./init.sh
 
 **💻 From zero to hero in minutes!**
 
-*Questions or issues? Open an issue or reach out on [LinkedIn](https://www.linkedin.com/in/dkorver/)*
+_Questions or issues? Open an issue or reach out on [LinkedIn](https://www.linkedin.com/in/dkorver/)_
 
 </div>

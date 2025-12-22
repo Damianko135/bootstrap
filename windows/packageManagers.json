@@ -1,10 +1,10 @@
 [
-    {
-        "name": "WinGet",
-        "description": "Windows Package Manager for installing and managing software packages."
-    },
-    {
-        "name": "Chocolatey",
-        "description": "A package manager for Windows that simplifies the installation of applications, tools, and other software on your system."
-    }
+  {
+    "name": "WinGet",
+    "description": "Windows Package Manager for installing and managing software packages."
+  },
+  {
+    "name": "Chocolatey",
+    "description": "A package manager for Windows that simplifies the installation of applications, tools, and other software on your system."
+  }
 ]

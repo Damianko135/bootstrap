@@ -1,24 +1,152 @@
 [
-  { "Name": "Git", "wingetId": "Git.Git", "chocoId": "git", "command": "git" },
-  { "Name": "PowerToys", "wingetId": "Microsoft.PowerToys", "chocoId": "powertoys" },
-  { "Name": "Visual Studio 2022 Community", "wingetId": "Microsoft.VisualStudio.2022.Community", "chocoId": "visualstudio2022community" },
-  { "Name": "Visual Studio 2022 Build Tools", "wingetId": "Microsoft.VisualStudio.2022.BuildTools", "chocoId": "visualstudio2022buildtools" },
-  { "Name": ".NET SDK 10", "wingetId": "Microsoft.DotNet.SDK.10", "chocoId": "dotnet-sdk", "command": "dotnet" },
-  { "Name": ".NET Runtime 10", "wingetId": "Microsoft.DotNet.Runtime.10", "chocoId": "dotnet-runtime" },
-  { "Name": ".NET Desktop Runtime 10", "wingetId": "Microsoft.DotNet.DesktopRuntime.10", "chocoId": "dotnet-desktopruntime" },
-  { "Name": "Visual Studio Code", "wingetId": "Microsoft.VisualStudioCode", "chocoId": "vscode", "command": "code" },
-  { "Name": "7-Zip", "wingetId": "7zip.7zip", "chocoId": "7zip" },
-  { "Name": "Mozilla Firefox", "wingetId": "Mozilla.Firefox", "chocoId": "firefox" },
-  { "Name": "GitHub Desktop", "wingetId": "GitHub.GitHubDesktop", "chocoId": "github-desktop" },
-  { "Name": "Windows Terminal", "wingetId": "Microsoft.WindowsTerminal", "chocoId": "microsoft-windows-terminal" },
-  { "Name": "PowerShell 7", "wingetId": "Microsoft.PowerShell", "chocoId": "powershell-core", "command": "pwsh" },
-  { "Name": "Node.js", "wingetId": "OpenJS.NodeJS", "chocoId": "nodejs", "command": "node" },
-  { "Name": "Docker Desktop", "wingetId": "Docker.DockerDesktop", "chocoId": "docker-desktop" },
-  { "Name": "Act GH Runner", "wingetId": "nektos.act", "chocoId": "act-cli", "command": "act" },
-  { "Name": "Microsoft Teams", "wingetId": "Microsoft.Teams", "chocoId": "microsoft-teams" },
-  { "Name": "Discord", "wingetId": "Discord.Discord", "chocoId": "discord" },
-  { "Name": "Steam", "wingetId": "Valve.Steam", "chocoId": "steam" },
-  { "Name": "Go", "wingetId": "GoLang.Go", "chocoId": "go", "command": "go" },
-  { "Name": "GoLand", "wingetId": "JetBrains.GoLand", "chocoId": "goland", "command": "goland" },
-  { "Name": "OpenVPN", "wingetId": "OpenVPNTechnologies.OpenVPN", "chocoId": "openvpn" }
+  {
+    "Name": "Git",
+    "wingetId": "Git.Git",
+    "chocoId": "git",
+    "command": "git",
+    "profile": ["minimal", "standard", "complete"],
+    "category": "versionControl",
+    "required": true
+  },
+  {
+    "Name": "PowerShell 7",
+    "wingetId": "Microsoft.PowerShell",
+    "chocoId": "powershell-core",
+    "command": "pwsh",
+    "profile": ["minimal", "standard", "complete"],
+    "category": "shell",
+    "required": true
+  },
+  {
+    "Name": "Visual Studio Code",
+    "wingetId": "Microsoft.VisualStudioCode",
+    "chocoId": "vscode",
+    "command": "code",
+    "profile": ["minimal", "standard", "complete"],
+    "category": "ide"
+  },
+  {
+    "Name": "Windows Terminal",
+    "wingetId": "Microsoft.WindowsTerminal",
+    "chocoId": "microsoft-windows-terminal",
+    "profile": ["standard", "complete"],
+    "category": "shell"
+  },
+  {
+    "Name": "PowerToys",
+    "wingetId": "Microsoft.PowerToys",
+    "chocoId": "powertoys",
+    "profile": ["standard", "complete"],
+    "category": "utilities"
+  },
+  {
+    "Name": "7-Zip",
+    "wingetId": "7zip.7zip",
+    "chocoId": "7zip",
+    "profile": ["standard", "complete"],
+    "category": "utilities"
+  },
+  {
+    "Name": "Mozilla Firefox",
+    "wingetId": "Mozilla.Firefox",
+    "chocoId": "firefox",
+    "profile": ["standard", "complete"],
+    "category": "browser"
+  },
+  {
+    "Name": "Node.js",
+    "wingetId": "OpenJS.NodeJS",
+    "chocoId": "nodejs",
+    "command": "node",
+    "profile": ["standard", "complete"],
+    "category": "sdk"
+  },
+  {
+    "Name": ".NET SDK 10",
+    "wingetId": "Microsoft.DotNet.SDK.10",
+    "chocoId": "dotnet-sdk",
+    "command": "dotnet",
+    "profile": ["standard", "complete"],
+    "category": "sdk"
+  },
+  {
+    "Name": ".NET Runtime 10",
+    "wingetId": "Microsoft.DotNet.Runtime.10",
+    "chocoId": "dotnet-runtime",
+    "profile": ["standard", "complete"],
+    "category": "sdk"
+  },
+  {
+    "Name": ".NET Desktop Runtime 10",
+    "wingetId": "Microsoft.DotNet.DesktopRuntime.10",
+    "chocoId": "dotnet-desktopruntime",
+    "profile": ["standard", "complete"],
+    "category": "sdk"
+  },
+  {
+    "Name": "Docker Desktop",
+    "wingetId": "Docker.DockerDesktop",
+    "chocoId": "docker-desktop",
+    "profile": ["standard", "complete"],
+    "category": "containerization"
+  },
+  {
+    "Name": "GitHub Desktop",
+    "wingetId": "GitHub.GitHubDesktop",
+    "chocoId": "github-desktop",
+    "profile": ["standard", "complete"],
+    "category": "versionControl"
+  },
+  {
+    "Name": "Go",
+    "wingetId": "GoLang.Go",
+    "chocoId": "go",
+    "command": "go",
+    "profile": ["complete"],
+    "category": "sdk"
+  },
+  {
+    "Name": "GoLand",
+    "wingetId": "JetBrains.GoLand",
+    "chocoId": "goland",
+    "command": "goland",
+    "profile": ["complete"],
+    "category": "ide"
+  },
+  {
+    "Name": "Act GH Runner",
+    "wingetId": "nektos.act",
+    "chocoId": "act-cli",
+    "command": "act",
+    "profile": ["standard", "complete"],
+    "category": "devOps"
+  },
+  {
+    "Name": "OpenVPN",
+    "wingetId": "OpenVPNTechnologies.OpenVPN",
+    "chocoId": "openvpn",
+    "profile": ["standard", "complete"],
+    "category": "security"
+  },
+  {
+    "Name": "Microsoft Teams",
+    "wingetId": "Microsoft.Teams",
+    "chocoId": "microsoft-teams",
+    "profile": ["standard", "complete"],
+    "category": "communication"
+  },
+  {
+    "Name": "Discord",
+    "wingetId": "Discord.Discord",
+    "chocoId": "discord",
+    "profile": ["standard", "complete", "gaming"],
+    "category": "communication"
+  },
+  {
+    "Name": "Steam",
+    "wingetId": "Valve.Steam",
+    "chocoId": "steam",
+    "profile": ["gaming", "complete"],
+    "category": "gaming"
+  }
 ]

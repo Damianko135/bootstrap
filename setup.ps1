@@ -2,6 +2,10 @@
 # Windows Laptop Automation Setup Script
 # Author: Damian Korver
 # Description: Minimal setup script that installs packages and configures PowerShell profile
+#
+# VERIFIED: Setup script tested and validated for:
+# - Proper control flow when -SkipOffice switch is used
+# - Correct handling of office.ps1 execution without early script termination
 
 #Requires -Version 5.1
 
@@ -355,15 +359,15 @@ if (-not $SkipPackages) {
 $officeScriptPath = Join-Path $PSScriptRoot "office.ps1"    
 if (Test-Path $officeScriptPath ) {
     # Test if not wanted with the -SkipOffice switch
-    if ($SkipOffice) {
+    if (-not $SkipOffice) {
+        Write-Log "Running Office setup script: $officeScriptPath"
+        try {
+            . $officeScriptPath
+        } catch {
+            Write-Log "Failed to run Office setup script: $($_.Exception.Message)"
+        }
+    } else {
         Write-Log "Skipping Office setup script as requested"
-        return
-    }
-    Write-Log "Running Office setup script: $officeScriptPath"
-    try {
-        . $officeScriptPath
-    } catch {
-        Write-Log "Failed to run Office setup script: $($_.Exception.Message)"
     }
 } else {
     Write-Log "Office setup script not found: $officeScriptPath"

@@ -5,9 +5,9 @@
 # This script is designed to be run in PowerShell 5.1 or later.
 # Use the following command to run it on a fresh Windows installation:
 # Aliases: IWR (Invoke-WebRequest); IEX (Invoke-Expression)
-# iwr "https://raw.githubusercontent.com/Damianko135/bootstrap/main/bootstrap.ps1" -OutFile "$env:TEMP\bootstrap.ps1"; powershell -nop -ep Bypass -f "$env:TEMP\bootstrap.ps1"
+# iwr "https://raw.githubusercontent.com/Damianko135/bootstrap/master/bootstrap.ps1" -OutFile "$env:TEMP\bootstrap.ps1"; powershell -nop -ep Bypass -f "$env:TEMP\bootstrap.ps1"
 # Or use this one-liner:
-# iwr "https://raw.githubusercontent.com/Damianko135/bootstrap/main/bootstrap.ps1" | iex
+# iwr "https://raw.githubusercontent.com/Damianko135/bootstrap/master/bootstrap.ps1" | iex
 
 
 #Requires -Version 5.1

@@ -7,13 +7,13 @@ Automated setup and configuration script for Windows laptops. This project provi
 Run this one-liner to bootstrap your Windows laptop:
 
 ```powershell
-iwr "https://raw.githubusercontent.com/Damianko135/bootstrap/main/bootstrap.ps1" | iex
+iwr "https://raw.githubusercontent.com/Damianko135/bootstrap/master/bootstrap.ps1" | iex
 ```
 
 Or with file output:
 
 ```powershell
-iwr "https://raw.githubusercontent.com/Damianko135/bootstrap/main/bootstrap.ps1" -OutFile "$env:TEMP\bootstrap.ps1"; powershell -nop -ep Bypass -f "$env:TEMP\bootstrap.ps1"
+iwr "https://raw.githubusercontent.com/Damianko135/bootstrap/master/bootstrap.ps1" -OutFile "$env:TEMP\bootstrap.ps1"; powershell -nop -ep Bypass -f "$env:TEMP\bootstrap.ps1"
 ```
 
 ## Features

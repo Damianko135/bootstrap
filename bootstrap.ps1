@@ -50,14 +50,7 @@ $ErrorActionPreference = "Stop"
 $ProgressPreference = 'SilentlyContinue'
 
 # ============================
-# Constants
-# ============================
-$RepoOwner = 'Damianko135'
-$RepoName = 'bootstrap'
-$GitHubApiUrl = "https://api.github.com/repos/$RepoOwner/$RepoName/releases/latest"
-
-# ============================
-# Logging
+# Logging (required for standalone execution)
 # ============================
 function Write-LogEntry {
     [CmdletBinding()]
@@ -80,6 +73,13 @@ function Write-LogEntry {
         'Error'   { Write-Error "$prefix $Message" }
     }
 }
+
+# ============================
+# Constants
+# ============================
+$RepoOwner = 'Damianko135'
+$RepoName = 'bootstrap'
+$GitHubApiUrl = "https://api.github.com/repos/$RepoOwner/$RepoName/releases/latest"
 
 # ============================
 # Main Functions

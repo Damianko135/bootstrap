@@ -108,7 +108,7 @@ function Gonit {
     go mod init $path
 }
 
-Set-Alias -Name ginit -Value Invoke-GoModInit
+Set-Alias -Name ginit -Value Gonit
 
 # ====================================================
 # Git Branch Detection

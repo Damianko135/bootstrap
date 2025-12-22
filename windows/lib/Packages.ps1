@@ -109,7 +109,7 @@ function Install-PackagesBatch {
         [int] $MaxParallel = 3
     )
     
-    Write-Log "Installing $($Packages.Count) packages (max parallel: $MaxParallel)" "INFO"
+    Write-Log "Installing $(@($Packages).Count) packages (max parallel: $MaxParallel)" "INFO"
     
     $jobs = @()
     $results = @{}
@@ -117,7 +117,7 @@ function Install-PackagesBatch {
     # Start parallel jobs
     foreach ($package in $Packages) {
         # Wait if we've hit the parallel limit
-        while ((Get-Job -State Running).Count -ge $MaxParallel) {
+        while (@(Get-Job -State Running).Count -ge $MaxParallel) {
             Start-Sleep -Milliseconds 500
         }
         
@@ -176,7 +176,7 @@ function Install-PackagesBatch {
     return @{
         Successful = $successCount
         Failed = $failureCount
-        Total = $Packages.Count
+        Total = @($Packages).Count
     }
 }
 
@@ -212,11 +212,11 @@ function Get-PackageList {
     }
     
     # Apply exclusions
-    if ($Exclude.Count -gt 0) {
+    if (@($Exclude).Count -gt 0) {
         $filtered = $filtered | Where-Object { $_.Name -notin $Exclude }
     }
     
-    Write-Log "Loaded $($filtered.Count) packages for profile '$Profile'" "INFO"
+    Write-Log "Loaded $(@($filtered).Count) packages for profile '$Profile'" "INFO"
     
     return $filtered
 }
@@ -363,7 +363,7 @@ function Build-DependencyGraph {
         }
     }
     
-    Write-Log "Dependency graph built with $($graph.Count) packages" "DEBUG"
+    Write-Log "Dependency graph built with $(@($graph.Keys).Count) packages" "DEBUG"
     return $graph
 }
 
@@ -450,10 +450,10 @@ function Detect-PackageConflicts {
         }
     }
     
-    if ($conflicts.Count -eq 0) {
+    if (@($conflicts).Count -eq 0) {
         Write-Log "No package conflicts detected" "INFO"
     } else {
-        Write-Log "$($conflicts.Count) conflict(s) detected" "WARN"
+        Write-Log "$(@($conflicts).Count) conflict(s) detected" "WARN"
     }
     
     return $conflicts
@@ -536,17 +536,17 @@ function Get-InstallationPreview {
     
     $preview = @{
         Profile = $Profile
-        TotalPackages = $Packages.Count
+        TotalPackages = @($Packages).Count
         PackageList = $sorted | Select-Object @{Name="Name"; Expression={$_.Name}}, @{Name="Manager"; Expression={if ($_.WingetId) {"winget"} else {"choco"}}}, @{Name="Category"; Expression={$_.Category}}
         Dependencies = @()
         Conflicts = $conflicts
-        ConflictCount = $conflicts.Count
-        EstimatedInstallTime = $sorted.Count * 30  # Rough estimate: 30s per package
+        ConflictCount = @($conflicts).Count
+        EstimatedInstallTime = @($sorted).Count * 30  # Rough estimate: 30s per package
     }
     
     # Build dependency summary
     foreach ($package in $sorted) {
-        if ($graph[$package.Name].Dependencies.Count -gt 0) {
+        if (@($graph[$package.Name].Dependencies).Count -gt 0) {
             $preview.Dependencies += @{
                 Package = $package.Name
                 DependsOn = $graph[$package.Name].Dependencies
@@ -582,7 +582,7 @@ function Show-InstallationPreview {
         Write-Host "  $($_.Name) [$($_.Manager)] ($($_.Category))" -ForegroundColor White
     }
     
-    if ($Preview.Dependencies.Count -gt 0) {
+    if (@($Preview.Dependencies).Count -gt 0) {
         Write-Host "`nDependency graph:" -ForegroundColor Yellow
         foreach ($dep in $Preview.Dependencies) {
             Write-Host "  $($dep.Package) depends on: $($dep.DependsOn -join ', ')" -ForegroundColor Gray

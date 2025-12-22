@@ -4,10 +4,10 @@
     Setup script for Windows Laptop Automation.
 
 .DESCRIPTION
-    Installs packages via Chocolatey/WinGet and configures PowerShell profile.
+    Installs packages via Chocolatey/WinGet, uninstalls unwanted packages, and configures PowerShell profile.
 
 .PARAMETER SkipPackages
-    Skip package installation.
+    Skip package installation and uninstallation.
 
 .PARAMETER SkipProfile
     Skip PowerShell profile setup.
@@ -46,6 +46,9 @@ param (
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+
+# Source shared functions
+. (Join-Path $PSScriptRoot 'functions.ps1')
 
 # ============================
 # Logging
@@ -271,6 +274,14 @@ try {
             }
         }
 
+        # Uninstall unwanted packages first
+        $uninstallScript = Join-Path $PSScriptRoot 'uninstall.ps1'
+        if (Test-Path $uninstallScript) {
+            Write-LogEntry "Running uninstall script..."
+            & $uninstallScript
+        }
+
+        # Then install desired packages
         Invoke-PackageInstallation
     }
 

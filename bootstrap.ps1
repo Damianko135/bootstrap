@@ -49,37 +49,13 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 $ProgressPreference = 'SilentlyContinue'
 
+# Source shared functions
+. (Join-Path $PSScriptRoot 'functions.ps1')
+
 # ============================
 # Constants
 # ============================
 $RepoOwner = 'Damianko135'
-$RepoName = 'bootstrap'
-$GitHubApiUrl = "https://api.github.com/repos/$RepoOwner/$RepoName/releases/latest"
-
-# ============================
-# Logging
-# ============================
-function Write-LogEntry {
-    [CmdletBinding()]
-    param (
-        [Parameter(Mandatory)]
-        [string]
-        $Message,
-
-        [ValidateSet('Info', 'Warning', 'Error')]
-        [string]
-        $Level = 'Info'
-    )
-
-    $timestamp = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
-    $prefix = "[$timestamp]"
-
-    switch ($Level) {
-        'Info'    { Write-Information "$prefix $Message" -InformationAction Continue }
-        'Warning' { Write-Warning "$prefix $Message" }
-        'Error'   { Write-Error "$prefix $Message" }
-    }
-}
 
 # ============================
 # Main Functions

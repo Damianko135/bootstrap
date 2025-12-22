@@ -17,6 +17,9 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
+# Source shared functions
+. (Join-Path $PSScriptRoot 'functions.ps1')
+
 # ============================
 # Constants
 # ============================
@@ -31,31 +34,6 @@ $OfficePaths = @(
     'C:\Program Files\Microsoft Office\root\Office16\WINWORD.EXE',
     'C:\Program Files (x86)\Microsoft Office\root\Office16\WINWORD.EXE'
 )
-
-# ============================
-# Logging
-# ============================
-function Write-LogEntry {
-    [CmdletBinding()]
-    param (
-        [Parameter(Mandatory)]
-        [string]
-        $Message,
-
-        [ValidateSet('Info', 'Warning', 'Error')]
-        [string]
-        $Level = 'Info'
-    )
-
-    $timestamp = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
-    $prefix = "[$timestamp]"
-
-    switch ($Level) {
-        'Info'    { Write-Information "$prefix $Message" -InformationAction Continue }
-        'Warning' { Write-Warning "$prefix $Message" }
-        'Error'   { Write-Error "$prefix $Message" }
-    }
-}
 
 # ============================
 # Helper Functions

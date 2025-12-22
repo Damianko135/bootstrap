@@ -48,36 +48,14 @@ param (
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
+# Source shared functions
+. (Join-Path $PSScriptRoot 'functions.ps1')
+
 # ============================
 # Constants
 # ============================
 $TestZipPath = Join-Path $DownloadPath 'BootstrapTest.zip'
 $ExtractPath = Join-Path $DownloadPath 'laptop-automation-temp'
-
-# ============================
-# Logging
-# ============================
-function Write-LogEntry {
-    [CmdletBinding()]
-    param (
-        [Parameter(Mandatory)]
-        [string]
-        $Message,
-
-        [ValidateSet('Info', 'Warning', 'Error')]
-        [string]
-        $Level = 'Info'
-    )
-
-    $timestamp = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
-    $prefix = "[$timestamp]"
-
-    switch ($Level) {
-        'Info'    { Write-Information "$prefix $Message" -InformationAction Continue }
-        'Warning' { Write-Warning "$prefix $Message" }
-        'Error'   { Write-Error "$prefix $Message" }
-    }
-}
 
 # ============================
 # Helper Functions

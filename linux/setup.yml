@@ -1,0 +1,85 @@
+---
+- name: Laptop Bootstrap Setup
+  hosts: localhost
+  connection: local
+  become: yes
+
+  vars:
+    do_system_upgrade: true
+    install_docker: true
+    harden_ssh: true
+
+    base_packages:
+      - git
+      - curl
+      - vim
+      - wget
+      - unzip
+      - tar
+      - net-tools
+      - nmap
+      - tcpdump
+      - htop
+      - python3
+      - python3-pip
+      - rsync
+      - tree
+      - zip
+      - jq
+
+    custom_bashrc_block: |
+      # Custom Bashrc
+      alias ll='ls -alF'
+      alias la='ls -A'
+      alias l='ls -CF'
+
+    vimrc_content: |
+      syntax on
+      set number
+      set tabstop=4
+      set shiftwidth=4
+      set expandtab
+      set autoindent
+      set smartindent
+      set ruler
+
+  pre_tasks:
+    - name: Upgrade system packages
+      package:
+        name: "*"
+        state: latest
+      when: do_system_upgrade
+
+    - name: Install base packages
+      package:
+        name: "{{ base_packages }}"
+        state: present
+
+  roles:
+    - { role: geerlingguy.docker, when: install_docker }
+    - { role: dev-sec.ssh-hardening, when: harden_ssh }
+
+  tasks:
+    - name: Deploy ~/.vimrc
+      copy:
+        dest: "{{ ansible_env.HOME }}/.vimrc"
+        content: "{{ vimrc_content }}\n"
+        owner: "{{ ansible_user_id }}"
+        mode: '0644'
+
+    - name: Add custom bash aliases
+      blockinfile:
+        path: "{{ ansible_env.HOME }}/.bashrc"
+        block: "{{ custom_bashrc_block }}"
+        marker: "# {mark} ANSIBLE MANAGED CUSTOM BASHRC"
+        create: yes
+
+  post_tasks:
+    - name: Bootstrap complete
+      debug:
+        msg: |
+          ✅ Laptop bootstrap complete.
+          OS Family: {{ ansible_os_family }}
+          Packages installed: {{ base_packages | join(', ') }}
+          Docker installed: {{ install_docker }}
+          SSH hardened: {{ harden_ssh }}

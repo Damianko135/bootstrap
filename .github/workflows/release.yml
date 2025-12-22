@@ -1,32 +1,49 @@
-name: Create Release Zip
+name: Auto Build & Release Bootstrap Archive
 
 on:
-  release:
-    types: [created]
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
-  create-release-zip:
+  release:
     runs-on: ubuntu-latest
-    
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-      
-      - name: Create zip file
+        uses: actions/checkout@v4
+
+      - name: Compress Setup Files
         run: |
-          mkdir -p artifacts
-          zip -r artifacts/Bootstrap-Automation.zip . \
+          mkdir dist
+          zip -r dist/Bootstrap.zip . \
             -x ".git/*" \
             ".github/*" \
             ".gitignore" \
             "*.md" \
-            "artifacts/*"
-      
-      - name: Upload Release Asset
+            "dist/*"
+
+      - name: Generate Version
+        id: version
+        run: |
+          RUN_NUMBER=$GITHUB_RUN_NUMBER
+          MAJOR=$((RUN_NUMBER / 1000))
+          MINOR=$(((RUN_NUMBER % 1000) / 100))
+          PATCH=$((RUN_NUMBER % 100))
+          VERSION="v${MAJOR}.${MINOR}.${PATCH}"
+          
+          echo "Calculated version: ${VERSION}"
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: artifacts/Bootstrap-Automation.zip
+          tag_name: ${{ steps.version.outputs.version }}
+          name: "Auto Release ${{ steps.version.outputs.version }}"
+          generate_release_notes: true
+          files: ${{ github.workspace }}/dist/Bootstrap.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

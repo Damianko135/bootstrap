@@ -1,8 +1,6 @@
 [
   { "Name": "Git", "wingetId": "Git.Git", "chocoId": "git", "command": "git" },
   { "Name": "PowerToys", "wingetId": "Microsoft.PowerToys", "chocoId": "powertoys" },
-  { "Name": "Visual Studio 2022 Community", "wingetId": "Microsoft.VisualStudio.2022.Community", "chocoId": "visualstudio2022community" },
-  { "Name": "Visual Studio 2022 Build Tools", "wingetId": "Microsoft.VisualStudio.2022.BuildTools", "chocoId": "visualstudio2022buildtools" },
   { "Name": ".NET SDK 10", "wingetId": "Microsoft.DotNet.SDK.10", "chocoId": "dotnet-sdk", "command": "dotnet" },
   { "Name": ".NET Runtime 10", "wingetId": "Microsoft.DotNet.Runtime.10", "chocoId": "dotnet-runtime" },
   { "Name": ".NET Desktop Runtime 10", "wingetId": "Microsoft.DotNet.DesktopRuntime.10", "chocoId": "dotnet-desktopruntime" },

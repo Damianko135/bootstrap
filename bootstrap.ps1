@@ -49,13 +49,18 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 $ProgressPreference = 'SilentlyContinue'
 
-# Import shared functions module
-Import-Module (Join-Path $PSScriptRoot 'functions.psd1')
+# Import shared functions module (only if running from file, not piped)
+$modulePath = Join-Path $PSScriptRoot 'functions.psd1'
+if (Test-Path $modulePath) {
+    Import-Module $modulePath
+}
 
 # ============================
 # Constants
 # ============================
 $RepoOwner = 'Damianko135'
+$RepoName = 'bootstrap'
+$GitHubApiUrl = "https://api.github.com/repos/$RepoOwner/$RepoName/releases/latest"
 
 # ============================
 # Main Functions

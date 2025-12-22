@@ -60,7 +60,7 @@ function Test-PackageInstallation {
             return $false
         }
     } catch {
-        Write-Log "✗ Package validation error for $PackageName: $($_.Exception.Message)" "ERROR"
+        Write-Log "✗ Package validation error for $PackageName`: $($_.Exception.Message)" "ERROR"
         return $false
     }
 }

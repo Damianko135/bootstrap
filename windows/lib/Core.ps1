@@ -154,7 +154,7 @@ function Test-DiskSpace {
         [int] $MinimumGB = 50
     )
     
-    $drive = Get-Item "C:\"
+    $drive = [System.IO.DriveInfo]::GetDrives() | Where-Object { $_.Name -eq "C:\" }
     $freeSpaceGB = [math]::Round($drive.AvailableFreeSpace / 1GB, 2)
     
     Write-Log "Disk space available: ${freeSpaceGB}GB (minimum: ${MinimumGB}GB)" "INFO"
@@ -385,7 +385,7 @@ function Initialize-CheckpointSystem {
     }
     
     # Load existing checkpoints
-    $script:CheckpointState.Checkpoints = Get-ChildItem $CheckpointDirectory -Filter "checkpoint_*.json" -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending
+    $script:CheckpointState.Checkpoints = @(Get-ChildItem $CheckpointDirectory -Filter "checkpoint_*.json" -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending)
     
     Write-Log "Checkpoint system initialized. Stored checkpoints: $($script:CheckpointState.Checkpoints.Count)" "DEBUG"
 }

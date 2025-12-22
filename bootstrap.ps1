@@ -12,12 +12,20 @@ param(
 
 try {
     if ($Local) {
-        & "$PSScriptRoot\windows\bootstrap.ps1" @PSBoundParameters
+        $arguments = @("-Profile", $Profile)
+        if ($SkipPackages) { $arguments += "-SkipPackages" }
+        if ($SkipProfile) { $arguments += "-SkipProfile" }
+        if ($Force) { $arguments += "-Force" }
+        & "$PSScriptRoot\windows\bootstrap.ps1" @arguments
     } else {
         $bootstrapUrl = "https://raw.githubusercontent.com/Damianko135/bootstrap/main/windows/bootstrap.ps1"
         $tempFile = [System.IO.Path]::GetTempFileName()
         Invoke-WebRequest -Uri $bootstrapUrl -OutFile $tempFile
-        & $tempFile @PSBoundParameters
+        $arguments = @("-Profile", $Profile)
+        if ($SkipPackages) { $arguments += "-SkipPackages" }
+        if ($SkipProfile) { $arguments += "-SkipProfile" }
+        if ($Force) { $arguments += "-Force" }
+        & $tempFile @arguments
         Remove-Item $tempFile -Force
     }
 } catch {

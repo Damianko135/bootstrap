@@ -568,7 +568,7 @@ function Show-InstallationPreview {
     Write-Host "===================" -ForegroundColor Cyan
     Write-Host "Profile: $($Preview.Profile)" -ForegroundColor Yellow
     Write-Host "Total packages: $($Preview.TotalPackages)" -ForegroundColor White
-    Write-Host "Estimated time: $(($Preview.EstimatedInstallTime / 60) | [math]::Round) minutes" -ForegroundColor White
+    Write-Host "Estimated time: $(($Preview.EstimatedInstallTime / 60) | ForEach-Object { [math]::Round($_) }) minutes" -ForegroundColor White
     
     if ($Preview.ConflictCount -gt 0) {
         Write-Host "`n⚠ WARNING: $($Preview.ConflictCount) conflict(s) detected!" -ForegroundColor Red

@@ -1,9 +1,6 @@
 [
   { "Name": "Git", "wingetId": "Git.Git", "chocoId": "git", "command": "git" },
   { "Name": "PowerToys", "wingetId": "Microsoft.PowerToys", "chocoId": "powertoys" },
-  { "Name": ".NET SDK 10", "wingetId": "Microsoft.DotNet.SDK.10", "chocoId": "dotnet-sdk", "command": "dotnet" },
-  { "Name": ".NET Runtime 10", "wingetId": "Microsoft.DotNet.Runtime.10", "chocoId": "dotnet-runtime" },
-  { "Name": ".NET Desktop Runtime 10", "wingetId": "Microsoft.DotNet.DesktopRuntime.10", "chocoId": "dotnet-desktopruntime" },
   { "Name": "Visual Studio Code", "wingetId": "Microsoft.VisualStudioCode", "chocoId": "vscode", "command": "code" },
   { "Name": "7-Zip", "wingetId": "7zip.7zip", "chocoId": "7zip" },
   { "Name": "Mozilla Firefox", "wingetId": "Mozilla.Firefox", "chocoId": "firefox" },

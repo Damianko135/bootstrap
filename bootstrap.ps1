@@ -1,204 +1,89 @@
 #!/usr/bin/env pwsh
 <#
-.SYNOPSIS
-    Bootstrap script for Windows Laptop Automation.
+Single-entry bootstrap with subcommands: install (default), uninstall, office, test, fetch
 
-.DESCRIPTION
-    Downloads the latest release from GitHub and executes the setup script.
-
-.PARAMETER SkipPackages
-    Skip package installation.
-
-.PARAMETER SkipProfile
-    Skip PowerShell profile setup.
-
-.PARAMETER Force
-    Force overwrite of existing configurations.
-
-.PARAMETER SkipOffice
-    Skip Office installation script.
-
-.PARAMETER DownloadPath
-    Path to download release files. Defaults to $env:TEMP.
-
-.EXAMPLE
-    .\bootstrap.ps1
-    .\bootstrap.ps1 -Force -SkipPackages
-    iwr "https://raw.githubusercontent.com/Damianko135/bootstrap/master/bootstrap.ps1" | iex
-
-.NOTES
-    Author: Damian Korver
-    Requires: PowerShell 5.1 or later
+Examples:
+  .\bootstrap.ps1                      # runs install
+  .\bootstrap.ps1 -Action uninstall
+  .\bootstrap.ps1 -Action fetch -DownloadPath C:\tmp
 #>
 
-#Requires -Version 5.1
-
 [CmdletBinding()]
-param (
-    [switch]
-    $SkipPackages,
+param(
+    [ValidateSet('install','uninstall','office','test','fetch')]
+    [string] $Action = 'install',
 
-    [switch]
-    $SkipProfile,
+    [switch] $SkipPackages,
+    [switch] $SkipProfile,
+    [switch] $Force,
+    [switch] $SkipOffice,
 
-    [switch]
-    $Force,
-
-    [switch]
-    $SkipOffice,
-
-    [string]
-    $DownloadPath = $env:TEMP
+    [string] $DownloadPath = $env:TEMP
 )
 
 Set-StrictMode -Version Latest
-$ErrorActionPreference = "Stop"
-$ProgressPreference = 'SilentlyContinue'
+$ErrorActionPreference = 'Stop'
 
-# ============================
-# Logging (required for standalone execution)
-# ============================
-function Write-LogEntry {
-    [CmdletBinding()]
-    param (
-        [Parameter(Mandatory)]
-        [string]
-        $Message,
+# load helpers
+. (Join-Path $PSScriptRoot 'helpers.ps1')
 
-        [ValidateSet('Info', 'Warning', 'Error')]
-        [string]
-        $Level = 'Info'
-    )
-
-    $timestamp = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
-    $prefix = "[$timestamp]"
-
-    switch ($Level) {
-        'Info'    { Write-Information "$prefix $Message" -InformationAction Continue }
-        'Warning' { Write-Warning "$prefix $Message" }
-        'Error'   { Write-Error "$prefix $Message" }
-    }
+function Invoke-FetchLatestRelease {
+    param([string]$RepoOwner = 'Damianko135', [string]$RepoName = 'bootstrap')
+    $api = "https://api.github.com/repos/$RepoOwner/$RepoName/releases/latest"
+    Write-Log "Fetching release from $api"
+    $rel = Invoke-RestMethod -Uri $api -Headers @{ 'User-Agent' = 'PowerShell-Bootstrap' }
+    $asset = $rel.assets | Where-Object { $_.name -like '*.zip' } | Select-Object -First 1
+    return @{ Name = $asset.name; Url = $asset.browser_download_url }
 }
 
-# ============================
-# Constants
-# ============================
-$RepoOwner = 'Damianko135'
-$RepoName = 'bootstrap'
-$GitHubApiUrl = "https://api.github.com/repos/$RepoOwner/$RepoName/releases/latest"
-
-# ============================
-# Main Functions
-# ============================
-function Get-LatestReleaseAsset {
-    Write-LogEntry "Fetching latest release from $GitHubApiUrl"
-
-    $release = Invoke-RestMethod -Uri $GitHubApiUrl -Headers @{ 'User-Agent' = 'PowerShell-Bootstrap' }
-    Write-LogEntry "Found release: $($release.name) ($($release.tag_name))"
-
-    $asset = $release.assets | Where-Object { $_.name -like '*.zip' } | Select-Object -First 1
-
-    return @{
-        Name         = $asset.name
-        DownloadUrl  = $asset.browser_download_url
-    }
-}
-
-function Invoke-FileDownload {
-    param (
-        [Parameter(Mandatory)]
-        [string]
-        $Uri,
-
-        [Parameter(Mandatory)]
-        [string]
-        $OutFile
-    )
-
-    Write-LogEntry "Downloading: $Uri"
-
-    if (Test-Path $OutFile) {
-        Remove-Item $OutFile -Force
+switch ($Action) {
+    'fetch' {
+        $asset = Invoke-FetchLatestRelease
+        $zip = Join-Path $DownloadPath $asset.Name
+        Invoke-FileDownload -Uri $asset.Url -OutFile $zip
+        Write-Log "Downloaded: $zip"
     }
 
-    Invoke-WebRequest -Uri $Uri -OutFile $OutFile -UseBasicParsing
-
-    Write-LogEntry "Download completed"
-}
-
-function Expand-ReleaseArchive {
-    param (
-        [Parameter(Mandatory)]
-        [string]
-        $ArchivePath,
-
-        [Parameter(Mandatory)]
-        [string]
-        $DestinationPath
-    )
-
-    Write-LogEntry "Extracting to: $DestinationPath"
-
-    if (Test-Path $DestinationPath) {
-        Remove-Item $DestinationPath -Recurse -Force
+    'test' {
+        # create a local zip of repository and run extracted setup (mimics previous run-test)
+        $testZip = Join-Path $DownloadPath 'BootstrapTest.zip'
+        if (Test-Path $testZip) { Remove-Item $testZip -Force }
+        $files = Get-ChildItem -Path $PSScriptRoot -Recurse -File | Where-Object { $_.Name -ne 'BootstrapTest.zip' }
+        Compress-Archive -Path $files.FullName -DestinationPath $testZip -Force
+        $extract = Join-Path $DownloadPath 'laptop-automation-temp'
+        Expand-ArchiveIfNeeded -ArchivePath $testZip -Destination $extract
+        $setup = Get-ChildItem $extract -Recurse -Filter 'setup.ps1' -File | Select-Object -First 1
+        if ($setup) { Push-Location $extract; try { & $setup.FullName } finally { Pop-Location } }
+        else { Write-Log 'no setup.ps1 found in test archive' 'WARN' }
     }
 
-    if (Get-Command Expand-Archive -ErrorAction SilentlyContinue) {
-        Expand-Archive -Path $ArchivePath -DestinationPath $DestinationPath -Force
-    }
-    else {
-        Add-Type -AssemblyName 'System.IO.Compression.FileSystem'
-        [System.IO.Compression.ZipFile]::ExtractToDirectory($ArchivePath, $DestinationPath)
+    'office' {
+        if ($SkipOffice) { Write-Log 'Skipping Office' ; break }
+        if (Test-Path (Join-Path $PSScriptRoot 'office.ps1')) { & (Join-Path $PSScriptRoot 'office.ps1') }
+        else { Write-Log 'office.ps1 not found' 'WARN' }
     }
 
-    Write-LogEntry "Extraction completed"
-}
-
-# ============================
-# Main Execution
-# ============================
-try {
-    Write-LogEntry "Bootstrap: Windows Laptop Automation Setup"
-    Write-LogEntry "Repository: $RepoOwner/$RepoName"
-
-    # Get and download latest release
-    $asset = Get-LatestReleaseAsset
-    $zipPath = Join-Path $DownloadPath $asset.Name
-    $extractPath = Join-Path $DownloadPath 'laptop-automation-temp'
-
-    Invoke-FileDownload -Uri $asset.DownloadUrl -OutFile $zipPath
-    Expand-ReleaseArchive -ArchivePath $zipPath -DestinationPath $extractPath
-
-    # Find and run setup script
-    $setupScript = Get-ChildItem $extractPath -Recurse -Filter 'setup.ps1' -File | Select-Object -First 1
-
-    Write-LogEntry "Executing setup script: $($setupScript.FullName)"
-
-    $setupParams = @{}
-    if ($SkipPackages) { $setupParams['SkipPackages'] = $true }
-    if ($SkipProfile)  { $setupParams['SkipProfile']  = $true }
-    if ($Force)        { $setupParams['Force']        = $true }
-    if ($SkipOffice)   { $setupParams['SkipOffice']   = $true }
-
-    Push-Location $extractPath
-    try {
-        & $setupScript.FullName @setupParams
-    }
-    finally {
-        Pop-Location
+    'uninstall' {
+        if (-not (Test-Administrator)) { Write-Log 'Must run as Administrator to uninstall' 'ERROR'; exit 1 }
+        Invoke-PackageAction -Action Uninstall
     }
 
-    Write-LogEntry "Bootstrap completed successfully!"
-}
-catch {
-    Write-LogEntry "Bootstrap failed: $_" -Level Error
-    exit 1
-}
-finally {
-    # Cleanup
-    @($zipPath, $extractPath) | ForEach-Object {
-        if (Test-Path $_) {
-            Remove-Item $_ -Recurse -Force -ErrorAction SilentlyContinue
+    'install' {
+        if (-not $SkipPackages) {
+            if (-not (Test-Administrator)) { Write-Log 'Package installation requires Administrator' 'ERROR'; exit 1 }
+            # ensure at least one manager
+            if (-not (Test-PackageManagerAvailable -PackageManager Chocolatey)) {
+                Write-Log 'Chocolatey missing, attempting install' 'INFO'
+                Ensure-Chocolatey | Out-Null
+            }
+            Invoke-PackageAction -Action Install
         }
+
+        if (-not $SkipOffice) { if (Test-Path (Join-Path $PSScriptRoot 'office.ps1')) { & (Join-Path $PSScriptRoot 'office.ps1') } }
+
+        if (-not $SkipProfile) { Invoke-ProfileInstall -Force:$Force }
     }
+
+    default { Write-Log "Unknown action: $Action" 'ERROR' }
 }
+

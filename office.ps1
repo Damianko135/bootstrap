@@ -28,7 +28,7 @@ $WorkingDir = Join-Path $env:TEMP 'OfficeInstall'
 $OdtUrl = if ($env:ODT_URL) { $env:ODT_URL } else { 'https://download.microsoft.com/download/6c1eeb25-cf8b-41d9-8d0d-cc1dbc032140/officedeploymenttool_18827-20140.exe' }
 $OdtExe = Join-Path $WorkingDir 'odt.exe'
 $SetupExe = Join-Path $WorkingDir 'setup.exe'
-$ConfigSource = Join-Path $PSScriptRoot 'office-configuration.xml'
+$ConfigSource = Join-Path $PSScriptRoot 'office.xml'
 $ConfigPath = Join-Path $WorkingDir 'configuration.xml'
 
 $OfficePaths = @(

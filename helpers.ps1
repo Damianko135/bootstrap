@@ -19,7 +19,7 @@ function Test-Administrator {
 
 function Test-PackageManagerAvailable {
     param([ValidateSet('Chocolatey','WinGet')][string]$PackageManager)
-    $cmd = if ($PackageManager -eq 'Chocolatey') { 'choco' } else { 'winget' }
+    if ($PackageManager -eq 'Chocolatey') { $cmd = 'choco' } else { $cmd = 'winget' }
     return $null -ne (Get-Command $cmd -ErrorAction SilentlyContinue)
 }
 
@@ -79,7 +79,7 @@ function Invoke-PackageAction {
 
     $data = Get-Content $PackagesJson -Raw | ConvertFrom-Json
     $packages = $data.packages
-    $preferred = if ($data.managers) { $data.managers } else @('Chocolatey','WinGet')
+    if ($data.managers) { $preferred = $data.managers } else { $preferred = @('Chocolatey','WinGet') }
 
     $choco = Test-PackageManagerAvailable -PackageManager Chocolatey
     $winget = Test-PackageManagerAvailable -PackageManager WinGet

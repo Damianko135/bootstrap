@@ -1,126 +1,57 @@
-# Windows Laptop Automation
+# Windows Laptop Automation (personal)
 
-Automated setup and configuration script for Windows laptops. This project provides a lightweight bootstrap solution to download and install packages, configure PowerShell profiles, and deploy Office on fresh Windows installations.
+Lightweight, single-user bootstrap for a Windows laptop. The repository has been simplified to a single entrypoint and a small set of resources for clarity and maintainability.
 
-## Quick Start
+Main files
 
-Run this one-liner to bootstrap your Windows laptop:
+- `bootstrap.ps1` — single entrypoint. Supported `-Action` values:
+  - `install` (default): install packages, deploy Office, and write profile
+  - `uninstall`: remove packages listed in `packages.json`
+  - `office`: run Office deployment only
+  - `fetch`: download latest release zip
+  - `test`: local archive extraction and exercise the setup flow
+- `helpers.ps1` — shared helper functions dot-sourced by `bootstrap.ps1`
+- `packages.json` — merged package manifest and manager preference
+- `profile.ps1` — PowerShell profile content (your QoL helpers)
+- `office.ps1`, `office.xml` — Office deployment logic and configuration
+- `uninstallList.json` — explicit uninstall list (kept for compatibility)
+
+Quick start
+
+Run the full install (this will reinstall packages where applicable and will not skip steps):
+
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File .\bootstrap.ps1
+```
+
+Or run the installer directly from GitHub (recommended for fresh machines — this downloads the release and runs the setup):
 
 ```powershell
 iwr "https://raw.githubusercontent.com/Damianko135/bootstrap/master/bootstrap.ps1" | iex
 ```
 
-Or with file output:
+Uninstall packages listed in `packages.json`:
 
 ```powershell
-iwr "https://raw.githubusercontent.com/Damianko135/bootstrap/master/bootstrap.ps1" -OutFile "$env:TEMP\bootstrap.ps1"; powershell -nop -ep Bypass -f "$env:TEMP\bootstrap.ps1"
+pwsh -NoProfile -ExecutionPolicy Bypass -File .\bootstrap.ps1 -Action uninstall
 ```
 
-## Features
-
-- **Automatic Download** - Fetches the latest release from GitHub
-- **Package Installation** - Installs configured packages via Chocolatey and Winget
-- **PowerShell Profile** - Configures your PowerShell profile automatically
-- **Office Deployment** - Optional Office installation with custom configuration
-- **Error Handling** - Comprehensive logging and error reporting
-- **Cleanup** - Removes temporary files after installation
-
-## Requirements
-
-- Windows 10/11
-- PowerShell 5.1 or later
-- Administrator privileges (for package installation)
-- Internet connectivity
-
-## Components
-
-### Bootstrap Script (`bootstrap.ps1`)
-The entry point script that downloads and executes the latest release from GitHub.
-
-**Parameters:**
-- `-SkipPackages` - Skip package installation
-- `-SkipProfile` - Skip PowerShell profile configuration
-- `-Force` - Force installation even if prerequisites fail
-- `-DownloadPath` - Custom temporary download path (default: `$env:TEMP`)
-
-### Setup Script (`setup.ps1`)
-Main configuration script executed after bootstrap downloads the release.
-
-**Parameters:**
-- `-SkipPackages` - Skip package installation
-- `-SkipProfile` - Skip PowerShell profile configuration
-- `-Force` - Force installation
-- `-SkipOffice` - Skip Office installation
-
-### Configuration Files
-
-#### `packageList.json`
-Defines packages to install with their package manager IDs:
-- Winget IDs for Windows Package Manager
-- Chocolatey IDs for Chocolatey package manager
-
-#### `office-configuration.xml`
-Microsoft Office Deployment Tool configuration for Office installation.
-
-#### `profile-content.ps1`
-PowerShell profile content to be added to the user's profile.
-
-## Releases
-
-Releases are automatically packaged into `Bootstrap-Automation.zip` via GitHub Actions when a new release is created. The bootstrap script downloads and extracts the latest release, then runs the setup script.
-
-## Development
-
-### Local Testing
+Fetch latest release zip (downloads to `$env:TEMP`):
 
 ```powershell
-# Run with skip flags for testing
-.\setup.ps1 -SkipPackages -SkipProfile -Force
-
-# Run full setup
-.\setup.ps1 -Force
+pwsh -NoProfile -ExecutionPolicy Bypass -File .\bootstrap.ps1 -Action fetch
 ```
 
-### Creating a Release
+Notes
 
-1. Create a new release on GitHub
-2. GitHub Actions automatically:
-   - Packages files into `Bootstrap-Automation.zip`
-   - Uploads zip as release asset
-3. Bootstrap script can now download and use the release
+- This repo is personal and minimal by design — no module publishing or heavy frameworks.
+- `profile-content.ps1` is preserved as a backup of your original profile.
+- The new default behaviour performs installs without skipping; use flags if you want to skip steps.
+- If you run the script without Administrator privileges and the selected action requires elevation (`install` or `uninstall`), the script will attempt to relaunch itself elevated and prompt for UAC.
 
-## File Structure
+Troubleshooting
 
-```
-.
-├── bootstrap.ps1              # Entry point script
-├── setup.ps1                  # Main setup script
-├── office.ps1                 # Office installation script
-├── profile-content.ps1        # PowerShell profile content
-├── packageList.json           # Package definitions
-├── packageManagers.json       # Package manager configuration
-├── office-configuration.xml   # Office deployment configuration
-├── run-test.ps1              # Test runner
-└── .github/
-    └── workflows/
-        └── release.yml        # GitHub Actions workflow for releases
-```
+- If a package install fails, check console logs. Most installers run silently, but some large installers (Docker Desktop, JetBrains IDEs) may require additional steps.
+- Office deployment is network-heavy and may take a while; run it alone with `-Action office` if you want to troubleshoot.
 
-## Logging
-
-All scripts use timestamped logging output. Check the console output during execution for detailed information about what's being installed and configured.
-
-## Troubleshooting
-
-- **No internet connectivity**: Ensure you have internet access before running
-- **Missing setup.ps1**: The bootstrap script looks for it in the extracted release
-- **Office installation fails**: Check that Office isn't already installed
-- **Package installation fails**: Ensure administrator privileges and valid package IDs
-
-## Author
-
-Damian Korver
-
-## License
-
-See LICENSE file for details.
+Author: Damian Korver

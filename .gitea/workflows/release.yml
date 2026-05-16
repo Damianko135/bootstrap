@@ -21,9 +21,11 @@ jobs:
           mkdir dist
           zip -r dist/Bootstrap.zip . \
             -x ".git/*" \
+            ".github/*" \
             ".gitea/*" \
             ".gitignore" \
             "*.md" \
+            "renovate.json" \
             "dist/*"
 
       - name: Generate Version

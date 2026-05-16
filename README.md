@@ -53,7 +53,6 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File .\bootstrap.ps1 -Action fetch
 Notes
 
 - This repo is personal and minimal by design — no module publishing or heavy frameworks.
-- `profile-content.ps1` is preserved as a backup of your original profile.
 - The new default behaviour performs installs without skipping; use flags if you want to skip steps.
 - If you run the script without Administrator privileges and the selected action requires elevation (`install` or `uninstall`), the script will attempt to relaunch itself elevated and prompt for UAC.
 

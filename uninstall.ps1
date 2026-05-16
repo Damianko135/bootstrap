@@ -35,11 +35,17 @@ function Uninstall-Package {
         $ChocoId,
 
         [string]
-        $WingetId
+        $WingetId,
+
+        [bool]
+        $ChocoAvailable,
+
+        [bool]
+        $WingetAvailable
     )
 
     # Try Chocolatey first
-    if ($ChocoId -and (Test-PackageManagerAvailable -PackageManager Chocolatey)) {
+    if ($ChocoId -and $ChocoAvailable) {
         Write-LogEntry "Uninstalling $Name via Chocolatey..."
         try {
             choco uninstall $ChocoId -y 2>&1 | Out-Null
@@ -52,7 +58,7 @@ function Uninstall-Package {
     }
 
     # Fallback to WinGet
-    if ($WingetId -and (Test-PackageManagerAvailable -PackageManager WinGet)) {
+    if ($WingetId -and $WingetAvailable) {
         Write-LogEntry "Uninstalling $Name via WinGet..."
         try {
             winget uninstall --id $WingetId --silent 2>&1 | Out-Null
@@ -73,6 +79,9 @@ function Invoke-PackageUninstallation {
 
     Write-LogEntry "Uninstalling $($packages.Count) packages..."
 
+    $chocoAvailable = Test-PackageManagerAvailable -PackageManager Chocolatey
+    $wingetAvailable = Test-PackageManagerAvailable -PackageManager WinGet
+
     $failed = @()
     $currentIndex = 0
 
@@ -86,7 +95,9 @@ function Invoke-PackageUninstallation {
 
         $success = Uninstall-Package -Name $package.Name `
                                      -ChocoId $package.chocoId `
-                                     -WingetId $package.wingetId
+                                     -WingetId $package.wingetId `
+                                     -ChocoAvailable $chocoAvailable `
+                                     -WingetAvailable $wingetAvailable
 
         if (-not $success) {
             $failed += $package.Name

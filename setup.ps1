@@ -92,11 +92,17 @@ function Install-Package {
         $ChocoId,
 
         [string]
-        $WingetId
+        $WingetId,
+
+        [bool]
+        $ChocoAvailable,
+
+        [bool]
+        $WingetAvailable
     )
 
     # Try Chocolatey first
-    if ($ChocoId -and (Test-PackageManagerAvailable -PackageManager Chocolatey)) {
+    if ($ChocoId -and $ChocoAvailable) {
         Write-LogEntry "Installing $Name via Chocolatey..."
         try {
             choco install $ChocoId -y --no-progress | Out-Null
@@ -109,7 +115,7 @@ function Install-Package {
     }
 
     # Fallback to WinGet
-    if ($WingetId -and (Test-PackageManagerAvailable -PackageManager WinGet)) {
+    if ($WingetId -and $WingetAvailable) {
         Write-LogEntry "Installing $Name via WinGet..."
         try {
             winget install --id $WingetId --silent --accept-package-agreements --accept-source-agreements 2>&1 | Out-Null
@@ -130,6 +136,9 @@ function Invoke-PackageInstallation {
 
     Write-LogEntry "Installing $($packages.Count) packages..."
 
+    $chocoAvailable = Test-PackageManagerAvailable -PackageManager Chocolatey
+    $wingetAvailable = Test-PackageManagerAvailable -PackageManager WinGet
+
     $failed = @()
     $currentIndex = 0
 
@@ -143,7 +152,9 @@ function Invoke-PackageInstallation {
 
         $success = Install-Package -Name $package.Name `
                                    -ChocoId $package.chocoId `
-                                   -WingetId $package.wingetId
+                                   -WingetId $package.wingetId `
+                                   -ChocoAvailable $chocoAvailable `
+                                   -WingetAvailable $wingetAvailable
 
         if (-not $success) {
             $failed += $package.Name
@@ -157,6 +168,27 @@ function Invoke-PackageInstallation {
     }
 
     Write-LogEntry "Package installation completed. Failed: $($failed.Count) / $($packages.Count)"
+}
+
+function Invoke-CommandVerification {
+    $packageList = Join-Path $PSScriptRoot 'packageList.json'
+    $packages = Get-Content $packageList | ConvertFrom-Json
+
+    # Refresh PATH so newly installed commands are visible in the current session
+    $machinePath = [System.Environment]::GetEnvironmentVariable('PATH', 'Machine')
+    $userPath    = [System.Environment]::GetEnvironmentVariable('PATH', 'User')
+    $env:PATH    = "$machinePath;$userPath"
+
+    $notFound = @()
+    foreach ($package in $packages) {
+        if ($package.command -and -not (Get-Command $package.command -ErrorAction SilentlyContinue)) {
+            $notFound += "$($package.Name) ($($package.command))"
+        }
+    }
+
+    if ($notFound.Count -gt 0) {
+        Write-LogEntry "Commands not in PATH after install (a restart may be required): $($notFound -join ', ')" -Level Warning
+    }
 }
 
 # ============================
@@ -201,7 +233,7 @@ function Invoke-OfficeSetup {
 
     Write-LogEntry "Running Office setup..."
     try {
-        . $officeScript
+        & $officeScript
     }
     catch {
         Write-LogEntry "Office setup failed: $_" -Level Warning
@@ -222,9 +254,13 @@ try {
         }
 
         if (-not (Test-PackageManagerAvailable -PackageManager Chocolatey)) {
+            Write-LogEntry "Chocolatey not found. Attempting installation..."
             if (-not (Install-ChocolateyPackageManager)) {
-                Write-LogEntry "Cannot proceed without Chocolatey" -Level Error
-                exit 1
+                if (-not (Test-PackageManagerAvailable -PackageManager WinGet)) {
+                    Write-LogEntry "No package manager available. Cannot proceed." -Level Error
+                    exit 1
+                }
+                Write-LogEntry "Chocolatey unavailable, continuing with WinGet only" -Level Warning
             }
         }
 
@@ -235,8 +271,9 @@ try {
             & $uninstallScript
         }
 
-        # Then install desired packages
+        # Then install desired packages and verify commands
         Invoke-PackageInstallation
+        Invoke-CommandVerification
     }
 
     Invoke-OfficeSetup

@@ -67,7 +67,8 @@ function Invoke-ArchiveCreation {
         Remove-Item $TestZipPath -Force
     }
 
-    $filesToZip = Get-ChildItem -Path . -File | Where-Object { $_.Name -ne 'run-test.ps1' }
+    $scriptPath = $MyInvocation.MyCommand.Path
+    $filesToZip = Get-ChildItem -Path $PSScriptRoot -Recurse -File | Where-Object { $_.FullName -ne $scriptPath }
 
     if (Get-Command Compress-Archive -ErrorAction SilentlyContinue) {
         Compress-Archive -Path $filesToZip.FullName -DestinationPath $TestZipPath -Force

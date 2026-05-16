@@ -114,9 +114,8 @@ Set-Alias -Name ginit -Value Gonit
 # Git Branch Detection
 # ====================================================
 function Get-GitBranch {
-    if (Test-Path .git) {
-        git rev-parse --abbrev-ref HEAD 2>$null
-    }
+    $branch = git rev-parse --abbrev-ref HEAD 2>$null
+    if ($LASTEXITCODE -eq 0) { $branch }
 }
 
 # ====================================================

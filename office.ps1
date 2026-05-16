@@ -24,7 +24,8 @@ Import-Module (Join-Path $PSScriptRoot 'functions.psd1')
 # Constants
 # ============================
 $WorkingDir = Join-Path $env:TEMP 'OfficeInstall'
-$OdtUrl = 'https://download.microsoft.com/download/6c1eeb25-cf8b-41d9-8d0d-cc1dbc032140/officedeploymenttool_18827-20140.exe'
+# Latest URL: https://www.microsoft.com/en-us/download/details.aspx?id=49117 — override via $env:ODT_URL if the default goes stale
+$OdtUrl = if ($env:ODT_URL) { $env:ODT_URL } else { 'https://download.microsoft.com/download/6c1eeb25-cf8b-41d9-8d0d-cc1dbc032140/officedeploymenttool_18827-20140.exe' }
 $OdtExe = Join-Path $WorkingDir 'odt.exe'
 $SetupExe = Join-Path $WorkingDir 'setup.exe'
 $ConfigSource = Join-Path $PSScriptRoot 'office-configuration.xml'

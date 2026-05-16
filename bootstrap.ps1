@@ -15,6 +15,9 @@
 .PARAMETER Force
     Force overwrite of existing configurations.
 
+.PARAMETER SkipOffice
+    Skip Office installation script.
+
 .PARAMETER DownloadPath
     Path to download release files. Defaults to $env:TEMP.
 
@@ -40,6 +43,9 @@ param (
 
     [switch]
     $Force,
+
+    [switch]
+    $SkipOffice,
 
     [string]
     $DownloadPath = $env:TEMP
@@ -115,19 +121,7 @@ function Invoke-FileDownload {
         Remove-Item $OutFile -Force
     }
 
-    if ($PSVersionTable.PSVersion.Major -ge 6) {
-        Invoke-WebRequest -Uri $Uri -OutFile $OutFile -UseBasicParsing
-    }
-    else {
-        $oldProgress = $ProgressPreference
-        $ProgressPreference = 'SilentlyContinue'
-        try {
-            Invoke-WebRequest -Uri $Uri -OutFile $OutFile -UseBasicParsing
-        }
-        finally {
-            $ProgressPreference = $oldProgress
-        }
-    }
+    Invoke-WebRequest -Uri $Uri -OutFile $OutFile -UseBasicParsing
 
     Write-LogEntry "Download completed"
 }
@@ -182,8 +176,9 @@ try {
 
     $setupParams = @{}
     if ($SkipPackages) { $setupParams['SkipPackages'] = $true }
-    if ($SkipProfile) { $setupParams['SkipProfile'] = $true }
-    if ($Force) { $setupParams['Force'] = $true }
+    if ($SkipProfile)  { $setupParams['SkipProfile']  = $true }
+    if ($Force)        { $setupParams['Force']        = $true }
+    if ($SkipOffice)   { $setupParams['SkipOffice']   = $true }
 
     Push-Location $extractPath
     try {

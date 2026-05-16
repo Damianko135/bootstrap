@@ -1,13 +1,13 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-function Write-Log {
+function Write-LogEntry {
     param([string]$Message, [string]$Level = 'INFO')
     $ts = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
     switch ($Level.ToUpper()) {
         'ERROR'   { Write-Error  "[$ts] $Message"; return }
         'WARN'    { Write-Warning "[$ts] $Message"; return }
-        default   { Write-Host    "[$ts] $Message" }
+        default   { Write-Information "[$ts] $Message" -InformationAction Continue }
     }
 }
 
@@ -23,9 +23,9 @@ function Test-PackageManagerAvailable {
     return $null -ne (Get-Command $cmd -ErrorAction SilentlyContinue)
 }
 
-function Ensure-Chocolatey {
+function Install-Chocolatey {
     if (Test-PackageManagerAvailable -PackageManager Chocolatey) { return $true }
-    Write-Log 'Installing Chocolatey (silent)...' 'INFO'
+    Write-LogEntry 'Installing Chocolatey (silent)...' 'INFO'
     Set-ExecutionPolicy Bypass -Scope Process -Force
     [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
     $tmp = Join-Path $env:TEMP 'install-choco.ps1'
@@ -34,7 +34,7 @@ function Ensure-Chocolatey {
         & $tmp
     }
     catch {
-        Write-Log "Chocolatey install failed: $_" 'WARN'
+        Write-LogEntry "Chocolatey install failed: $_" 'WARN'
     }
     finally { if (Test-Path $tmp) { Remove-Item $tmp -Force -ErrorAction SilentlyContinue } }
 
@@ -43,7 +43,7 @@ function Ensure-Chocolatey {
 
 function Invoke-FileDownload {
     param([Parameter(Mandatory)][string]$Uri, [Parameter(Mandatory)][string]$OutFile)
-    Write-Log "Downloading $Uri -> $OutFile"
+    Write-LogEntry "Downloading $Uri -> $OutFile"
     if (Test-Path $OutFile) { Remove-Item $OutFile -Force -ErrorAction SilentlyContinue }
     Invoke-WebRequest -Uri $Uri -OutFile $OutFile
 }
@@ -60,16 +60,7 @@ function Expand-ArchiveIfNeeded {
     }
 }
 
-function Backup-FileIfExists {
-    param([Parameter(Mandatory)][string]$Path)
-    if (Test-Path $Path) {
-        $bak = "$Path.bak.$((Get-Date).ToString('yyyyMMddHHmmss'))"
-        Copy-Item -Path $Path -Destination $bak -Force
-        Write-Log "Backed up $Path -> $bak"
-        return $bak
-    }
-    return $null
-}
+
 
 function Invoke-PackageAction {
     param(
@@ -97,13 +88,13 @@ function Invoke-PackageAction {
                 try {
                     if ($Action -eq 'Install') { choco install $p.chocoId -y --no-progress | Out-Null } else { choco uninstall $p.chocoId -y | Out-Null }
                     $did = $true; break
-                } catch { Write-Log "$mgr failed for $($p.Name): $_" 'WARN' }
+                } catch { Write-LogEntry "$mgr failed for $($p.Name): $_" 'WARN' }
             }
             if ($mgr -eq 'WinGet' -and $winget -and $p.wingetId) {
                 try {
                     if ($Action -eq 'Install') { winget install --id $p.wingetId --silent --accept-package-agreements --accept-source-agreements | Out-Null } else { winget uninstall --id $p.wingetId --silent | Out-Null }
                     $did = $true; break
-                } catch { Write-Log "$mgr failed for $($p.Name): $_" 'WARN' }
+                } catch { Write-LogEntry "$mgr failed for $($p.Name): $_" 'WARN' }
             }
         }
 
@@ -111,8 +102,19 @@ function Invoke-PackageAction {
     }
     Write-Progress -Activity "$Action Packages" -Completed
 
-    if ($failed.Count) { Write-Log "$Action failed: $($failed -join ', ')" 'WARN' }
-    Write-Log "$Action completed. Failed: $($failed.Count) / $($packages.Count)"
+    if ($failed.Count) { Write-LogEntry "$Action failed: $($failed -join ', ')" 'WARN' }
+    Write-LogEntry "$Action completed. Failed: $($failed.Count) / $($packages.Count)"
+}
+
+function Backup-ExistingItem {
+    param([Parameter(Mandatory)][string]$Path)
+    if (Test-Path $Path) {
+        $bak = "$Path.bak.$((Get-Date).ToString('yyyyMMddHHmmss'))"
+        Copy-Item -Path $Path -Destination $bak -Force
+        Write-LogEntry "Backed up $Path -> $bak"
+        return $bak
+    }
+    return $null
 }
 
 function Invoke-ProfileInstall {
@@ -120,8 +122,8 @@ function Invoke-ProfileInstall {
     $dest = $PROFILE
     $dir = Split-Path $dest
     if (-not (Test-Path $dir)) { New-Item -Path $dir -ItemType Directory -Force | Out-Null }
-    if ((-not $Force) -and (Test-Path $dest)) { Write-Log "Profile exists at $dest (use -Force to overwrite)"; return }
-    Backup-FileIfExists -Path $dest | Out-Null
+    if ((-not $Force) -and (Test-Path $dest)) { Write-LogEntry "Profile exists at $dest (use -Force to overwrite)"; return }
+    Backup-ExistingItem -Path $dest | Out-Null
     Get-Content $Source -Raw | Set-Content -Path $dest -Encoding UTF8
-    Write-Log "Profile written to $dest"
+    Write-LogEntry "Profile written to $dest"
 }

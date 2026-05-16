@@ -66,7 +66,7 @@ function gl {
 # Utility Functions
 # ====================================================
 function Reprof {
-    Write-Host "Reloading PowerShell profile..."
+    Write-Output "Reloading PowerShell profile..."
     . $PROFILE
 }
 
@@ -178,4 +178,4 @@ if (Get-Command winget -ErrorAction SilentlyContinue) {
 # ====================================================
 # Startup
 # ====================================================
-Write-Host "PowerShell v$($PSVersionTable.PSVersion.Major).$($PSVersionTable.PSVersion.Minor) Ready"
+Write-Output "PowerShell v$($PSVersionTable.PSVersion.Major).$($PSVersionTable.PSVersion.Minor) Ready"

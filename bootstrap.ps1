@@ -1,4 +1,4 @@
-#!/usr/bin/env pwsh
+﻿#!/usr/bin/env pwsh
 <#
 Single-entry bootstrap with subcommands: install (default), uninstall, office, test, fetch
 
@@ -36,7 +36,7 @@ if (Test-Path (Join-Path $ScriptRoot 'helpers.ps1')) {
 }
 else {
     # Remote bootstrap behavior: download latest release and execute setup.ps1 from it
-    Write-Host 'helpers.ps1 not found locally — running remote bootstrap (download latest release)'
+    Write-Output 'helpers.ps1 not found locally — running remote bootstrap (download latest release)'
 
     $asset = Invoke-FetchLatestRelease
     $zipPath = Join-Path $DownloadPath $asset.Name
@@ -46,7 +46,7 @@ else {
     Expand-ArchiveIfNeeded -ArchivePath $zipPath -Destination $extractPath
 
     $setupScript = Get-ChildItem $extractPath -Recurse -Filter 'setup.ps1' -File | Select-Object -First 1
-    if (-not $setupScript) { Write-Host 'setup.ps1 not found in release'; exit 1 }
+    if (-not $setupScript) { Write-Output 'setup.ps1 not found in release'; exit 1 }
 
     $setupParams = @()
     if ($SkipPackages) { $setupParams += '-SkipPackages' }
@@ -66,7 +66,7 @@ else {
 # If an action requires elevation, relaunch elevated when not running as administrator.
 $needsElevation = $Action -in @('install','uninstall')
 if ($needsElevation -and -not (Test-Administrator)) {
-    Write-Log 'Not running as Administrator — relaunching elevated' 'INFO'
+    Write-LogEntry 'Not running as Administrator — relaunching elevated' 'INFO'
 
     $pwshCmd = (Get-Command pwsh -ErrorAction SilentlyContinue).Source
     if (-not $pwshCmd) { $pwshCmd = (Get-Command powershell -ErrorAction SilentlyContinue).Source }
@@ -85,7 +85,7 @@ if ($needsElevation -and -not (Test-Administrator)) {
 function Invoke-FetchLatestRelease {
     param([string]$RepoOwner = 'Damianko135', [string]$RepoName = 'bootstrap')
     $api = "https://api.github.com/repos/$RepoOwner/$RepoName/releases/latest"
-    Write-Log "Fetching release from $api"
+    Write-LogEntry "Fetching release from $api"
     $rel = Invoke-RestMethod -Uri $api -Headers @{ 'User-Agent' = 'PowerShell-Bootstrap' }
     $asset = $rel.assets | Where-Object { $_.name -like '*.zip' } | Select-Object -First 1
     return @{ Name = $asset.name; Url = $asset.browser_download_url }
@@ -96,7 +96,7 @@ switch ($Action) {
         $asset = Invoke-FetchLatestRelease
         $zip = Join-Path $DownloadPath $asset.Name
         Invoke-FileDownload -Uri $asset.Url -OutFile $zip
-        Write-Log "Downloaded: $zip"
+        Write-LogEntry "Downloaded: $zip"
     }
 
     'test' {
@@ -118,37 +118,37 @@ switch ($Action) {
             }
         }
         else {
-            Write-Log 'no setup.ps1 found in test archive' 'WARN'
+            Write-LogEntry 'no setup.ps1 found in test archive' 'WARN'
         }
     }
 
     'office' {
         if ($SkipOffice) {
-            Write-Log 'Skipping Office'
+            Write-LogEntry 'Skipping Office'
             break
         }
         if (Test-Path (Join-Path $ScriptRoot 'office.ps1')) {
             & (Join-Path $ScriptRoot 'office.ps1')
         }
         else {
-            Write-Log 'office.ps1 not found' 'WARN'
+            Write-LogEntry 'office.ps1 not found' 'WARN'
         }
     }
 
     'uninstall' {
-        if (-not (Test-Administrator)) { Write-Log 'Must run as Administrator to uninstall' 'ERROR'; exit 1 }
+        if (-not (Test-Administrator)) { Write-LogEntry 'Must run as Administrator to uninstall' 'ERROR'; exit 1 }
         Invoke-PackageAction -Action Uninstall
     }
 
     'install' {
         if (-not $SkipPackages) {
-            if (-not (Test-Administrator)) { Write-Log 'Package installation requires Administrator' 'ERROR'; exit 1 }
+            if (-not (Test-Administrator)) { Write-LogEntry 'Package installation requires Administrator' 'ERROR'; exit 1 }
             # ensure at least one manager
             if (-not (Test-PackageManagerAvailable -PackageManager Chocolatey)) {
-                Write-Log 'Chocolatey missing, attempting install' 'INFO'
-                Ensure-Chocolatey | Out-Null
+                        Write-LogEntry 'Chocolatey missing, attempting install' 'INFO'
+                        Install-Chocolatey | Out-Null
             }
-            Invoke-PackageAction -Action Install
+                    Invoke-PackageAction -Action Install
         }
 
         if (-not $SkipOffice) { if (Test-Path (Join-Path $ScriptRoot 'office.ps1')) { & (Join-Path $ScriptRoot 'office.ps1') } }
@@ -156,6 +156,6 @@ switch ($Action) {
         if (-not $SkipProfile) { Invoke-ProfileInstall -Force:$Force }
     }
 
-    default { Write-Log "Unknown action: $Action" 'ERROR' }
+    default { Write-LogEntry "Unknown action: $Action" 'ERROR' }
 }
 

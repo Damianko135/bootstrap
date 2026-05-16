@@ -6,6 +6,7 @@ Examples:
   .\bootstrap.ps1                      # runs install
   .\bootstrap.ps1 -Action uninstall
   .\bootstrap.ps1 -Action fetch -DownloadPath C:\tmp
+  .\bootstrap.ps1 -SkipDebloat         # install without removing bloatware
 #>
 
 [CmdletBinding()]
@@ -17,6 +18,7 @@ param(
     [switch] $SkipProfile,
     [switch] $Force,
     [switch] $SkipOffice,
+    [switch] $SkipDebloat,
 
     [string] $DownloadPath = $env:TEMP
 )
@@ -45,14 +47,15 @@ else {
     Invoke-FileDownload -Uri $asset.Url -OutFile $zipPath
     Expand-ArchiveIfNeeded -ArchivePath $zipPath -Destination $extractPath
 
-    $setupScript = Get-ChildItem $extractPath -Recurse -Filter 'setup.ps1' -File | Select-Object -First 1
-    if (-not $setupScript) { Write-Output 'setup.ps1 not found in release'; exit 1 }
+    $setupScript = Get-ChildItem $extractPath -Recurse -Filter 'bootstrap.ps1' -File | Select-Object -First 1
+    if (-not $setupScript) { Write-Output 'bootstrap.ps1 not found in release'; exit 1 }
 
     $setupParams = @()
     if ($SkipPackages) { $setupParams += '-SkipPackages' }
     if ($SkipProfile)  { $setupParams += '-SkipProfile' }
     if ($Force)        { $setupParams += '-Force' }
     if ($SkipOffice)   { $setupParams += '-SkipOffice' }
+    if ($SkipDebloat)  { $setupParams += '-SkipDebloat' }
 
     Push-Location $extractPath
     try { & $setupScript.FullName @setupParams }
@@ -76,6 +79,7 @@ if ($needsElevation -and -not (Test-Administrator)) {
     if ($SkipProfile)  { $argList += '-SkipProfile' }
     if ($Force)        { $argList += '-Force' }
     if ($SkipOffice)   { $argList += '-SkipOffice' }
+    if ($SkipDebloat)  { $argList += '-SkipDebloat' }
     if ($DownloadPath) { $argList += '-DownloadPath'; $argList += $DownloadPath }
 
     Start-Process -FilePath $pwshCmd -ArgumentList $argList -Verb RunAs
@@ -107,7 +111,7 @@ switch ($Action) {
         Compress-Archive -Path $files.FullName -DestinationPath $testZip -Force
         $extract = Join-Path $DownloadPath 'laptop-automation-temp'
         Expand-ArchiveIfNeeded -ArchivePath $testZip -Destination $extract
-        $setup = Get-ChildItem $extract -Recurse -Filter 'setup.ps1' -File | Select-Object -First 1
+        $setup = Get-ChildItem $extract -Recurse -Filter 'bootstrap.ps1' -File | Select-Object -First 1
         if ($setup) {
             Push-Location $extract
             try {
@@ -118,7 +122,7 @@ switch ($Action) {
             }
         }
         else {
-            Write-LogEntry 'no setup.ps1 found in test archive' 'WARN'
+            Write-LogEntry 'no bootstrap.ps1 found in test archive' 'WARN'
         }
     }
 
@@ -141,14 +145,18 @@ switch ($Action) {
     }
 
     'install' {
+        if (-not $SkipDebloat) {
+            if (-not (Test-Administrator)) { Write-LogEntry 'Debloat requires Administrator' 'ERROR'; exit 1 }
+            Invoke-Debloat
+        }
+
         if (-not $SkipPackages) {
             if (-not (Test-Administrator)) { Write-LogEntry 'Package installation requires Administrator' 'ERROR'; exit 1 }
-            # ensure at least one manager
             if (-not (Test-PackageManagerAvailable -PackageManager Chocolatey)) {
-                        Write-LogEntry 'Chocolatey missing, attempting install' 'INFO'
-                        Install-Chocolatey | Out-Null
+                Write-LogEntry 'Chocolatey missing, attempting install' 'INFO'
+                Install-Chocolatey | Out-Null
             }
-                    Invoke-PackageAction -Action Install
+            Invoke-PackageAction -Action Install
         }
 
         if (-not $SkipOffice) { if (Test-Path (Join-Path $ScriptRoot 'office.ps1')) { & (Join-Path $ScriptRoot 'office.ps1') } }

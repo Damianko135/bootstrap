@@ -106,6 +106,31 @@ function Invoke-PackageAction {
     Write-LogEntry "$Action completed. Failed: $($failed.Count) / $($packages.Count)"
 }
 
+function Invoke-Debloat {
+    param([string]$UninstallListJson = (Join-Path $PSScriptRoot 'uninstallList.json'))
+    if (-not (Test-Path $UninstallListJson)) { Write-LogEntry 'uninstallList.json not found, skipping debloat' 'WARN'; return }
+    $entries = Get-Content $UninstallListJson -Raw | ConvertFrom-Json
+    $i = 0
+    foreach ($entry in $entries) {
+        $i++
+        $pct = [math]::Round(($i / $entries.Count) * 100)
+        Write-Progress -Activity 'Removing bloatware' -Status $entry.Name -PercentComplete $pct
+        try {
+            $pkg = Get-AppxPackage -Name $entry.AppxPackage -AllUsers -ErrorAction SilentlyContinue
+            if ($pkg) {
+                $pkg | Remove-AppxPackage -AllUsers -ErrorAction SilentlyContinue
+                Write-LogEntry "Removed $($entry.Name)"
+            }
+            $prov = Get-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue |
+                Where-Object { $_.DisplayName -eq $entry.AppxPackage }
+            if ($prov) { Remove-AppxProvisionedPackage -Online -PackageName $prov.PackageName -ErrorAction SilentlyContinue | Out-Null }
+        }
+        catch { Write-LogEntry "Failed to remove $($entry.Name): $_" 'WARN' }
+    }
+    Write-Progress -Activity 'Removing bloatware' -Completed
+    Write-LogEntry "Debloat completed ($($entries.Count) entries processed)"
+}
+
 function Backup-ExistingItem {
     param([Parameter(Mandatory)][string]$Path)
     if (Test-Path $Path) {

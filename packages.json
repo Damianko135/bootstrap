@@ -66,12 +66,6 @@
     { "Name": "Steam", "wingetId": "Valve.Steam", "chocoId": "steam" },
     { "Name": "Go", "wingetId": "GoLang.Go", "chocoId": "go", "command": "go" },
     {
-      "Name": "GoLand",
-      "wingetId": "JetBrains.GoLand",
-      "chocoId": "goland",
-      "command": "goland"
-    },
-    {
       "Name": "OpenVPN",
       "wingetId": "OpenVPNTechnologies.OpenVPN",
       "chocoId": "openvpn"

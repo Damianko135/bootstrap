@@ -24,10 +24,18 @@ Run the full install (this will reinstall packages where applicable and will not
 pwsh -NoProfile -ExecutionPolicy Bypass -File .\bootstrap.ps1
 ```
 
-Or run the installer directly from GitHub (recommended for fresh machines — opens an elevated window with execution policy bypass and runs the script directly):
+Or run the installer directly from GitHub. Two variants — use whichever your machine allows:
+
+**Option A** — opens an elevated window and runs the script directly (may trigger AV on managed machines):
 
 ```powershell
 Start-Process pwsh -Verb RunAs -ArgumentList '-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', "iwr 'https://raw.githubusercontent.com/Damianko135/bootstrap/master/bootstrap.ps1' | iex"
+```
+
+**Option B** — downloads to a temp file first, then relaunches elevated (friendlier to AV/MDM policies):
+
+```powershell
+$f="$env:TEMP\bootstrap.ps1"; iwr 'https://raw.githubusercontent.com/Damianko135/bootstrap/master/bootstrap.ps1' -OutFile $f; Start-Process pwsh -Verb RunAs -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$f`""
 ```
 
 Uninstall packages listed in `packages.json`:

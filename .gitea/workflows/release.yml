@@ -1,0 +1,55 @@
+name: Auto Build & Release Bootstrap Archive
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Compress Setup Files
+        run: |
+          mkdir dist
+          zip -r dist/Bootstrap.zip . \
+            -x ".git/*" \
+            ".gitea/*" \
+            ".gitignore" \
+            "*.md" \
+            "dist/*"
+
+      - name: Generate Version
+        id: version
+        run: |
+          RUN_NUMBER=${{ github.run_number }}
+          MAJOR=$((RUN_NUMBER / 1000))
+          MINOR=$(((RUN_NUMBER % 1000) / 100))
+          PATCH=$((RUN_NUMBER % 100))
+          VERSION="v${MAJOR}.${MINOR}.${PATCH}"
+          echo "Calculated version: ${VERSION}"
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+
+      - name: Create Release and Upload Asset
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          RELEASE_ID=$(curl -s -X POST \
+            "${GITHUB_SERVER_URL}/api/v1/repos/${GITHUB_REPOSITORY}/releases" \
+            -H "Authorization: token ${TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "{\"tag_name\":\"${VERSION}\",\"name\":\"Auto Release ${VERSION}\"}" \
+            | jq -r '.id')
+
+          curl -s -X POST \
+            "${GITHUB_SERVER_URL}/api/v1/repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}/assets" \
+            -H "Authorization: token ${TOKEN}" \
+            -F "attachment=@${{ github.workspace }}/dist/Bootstrap.zip"

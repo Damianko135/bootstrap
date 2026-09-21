@@ -1,5 +1,8 @@
 {
-  "managers": ["Chocolatey", "WinGet"],
+  "managers": [
+    "Chocolatey",
+    "WinGet"
+  ],
   "packages": [
     {
       "Name": "Git",
@@ -18,7 +21,11 @@
       "chocoId": "vscode",
       "command": "code"
     },
-    { "Name": "7-Zip", "wingetId": "7zip.7zip", "chocoId": "7zip" },
+    {
+      "Name": "7-Zip",
+      "wingetId": "7zip.7zip",
+      "chocoId": "7zip"
+    },
     {
       "Name": "Mozilla Firefox",
       "wingetId": "Mozilla.Firefox",
@@ -62,13 +69,32 @@
       "wingetId": "Microsoft.Teams",
       "chocoId": "microsoft-teams"
     },
-    { "Name": "Discord", "wingetId": "Discord.Discord", "chocoId": "discord" },
-    { "Name": "Steam", "wingetId": "Valve.Steam", "chocoId": "steam" },
-    { "Name": "Go", "wingetId": "GoLang.Go", "chocoId": "go", "command": "go" },
+    {
+      "Name": "Discord",
+      "wingetId": "Discord.Discord",
+      "chocoId": "discord"
+    },
+    {
+      "Name": "Steam",
+      "wingetId": "Valve.Steam",
+      "chocoId": "steam"
+    },
+    {
+      "Name": "Go",
+      "wingetId": "GoLang.Go",
+      "chocoId": "go",
+      "command": "go"
+    },
     {
       "Name": "OpenVPN",
       "wingetId": "OpenVPNTechnologies.OpenVPN",
       "chocoId": "openvpn"
+    },
+    {
+      "Name": "Bun",
+      "wingetId": "Oven-sh.Bun",
+      "chocoId": "bun", 
+      "command": "bun"
     }
   ]
 }

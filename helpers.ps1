@@ -1,6 +1,12 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
+# Invoke-FileDownload, Expand-ArchiveIfNeeded and Invoke-FetchLatestRelease live in bootstrap.ps1 —
+# they're needed before helpers.ps1 can be dot-sourced there (e.g. the standalone iwr|iex flow).
+# Write-LogEntry is defined in both files: bootstrap.ps1 needs it before helpers.ps1 loads, and
+# office.ps1 dot-sources this file directly (not bootstrap.ps1), so it needs its own copy too.
+# When both files are loaded together the two definitions are identical and the second just
+# harmlessly replaces the first.
 function Write-LogEntry {
     param([string]$Message, [string]$Level = 'INFO')
     $ts = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
@@ -40,27 +46,6 @@ function Install-Chocolatey {
 
     return Test-PackageManagerAvailable -PackageManager Chocolatey
 }
-
-function Invoke-FileDownload {
-    param([Parameter(Mandatory)][string]$Uri, [Parameter(Mandatory)][string]$OutFile)
-    Write-LogEntry "Downloading $Uri -> $OutFile"
-    if (Test-Path $OutFile) { Remove-Item $OutFile -Force -ErrorAction SilentlyContinue }
-    Invoke-WebRequest -Uri $Uri -OutFile $OutFile
-}
-
-function Expand-ArchiveIfNeeded {
-    param([string]$ArchivePath, [string]$Destination)
-    if (Test-Path $Destination) { Remove-Item $Destination -Recurse -Force -ErrorAction SilentlyContinue }
-    if (Get-Command Expand-Archive -ErrorAction SilentlyContinue) {
-        Expand-Archive -Path $ArchivePath -DestinationPath $Destination -Force
-    }
-    else {
-        Add-Type -AssemblyName 'System.IO.Compression.FileSystem'
-        [System.IO.Compression.ZipFile]::ExtractToDirectory($ArchivePath, $Destination)
-    }
-}
-
-
 
 function Invoke-PackageAction {
     param(

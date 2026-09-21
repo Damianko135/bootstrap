@@ -1,0 +1,21 @@
+name: Validate Bootstrap Scripts
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  smoke-test:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      # Uses the Windows PowerShell 5.1 built into windows-latest (not pwsh), to prove the
+      # scripts don't depend on PowerShell 7 being installed.
+      - name: Run smoke test via Windows PowerShell 5.1
+        shell: powershell
+        run: .\bootstrap.ps1 -Action test

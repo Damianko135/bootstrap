@@ -1,11 +1,10 @@
-﻿#!/usr/bin/env pwsh
-<#
+﻿<#
 .SYNOPSIS
     Office Deployment Automation Script
 
 .DESCRIPTION
     Downloads and installs Microsoft Office using the Office Deployment Tool (ODT).
-    This script is called by setup.ps1 and should not be run directly.
+    This script is called by bootstrap.ps1 and should not be run directly.
 
 .NOTES
     Author: Damian Korver
@@ -17,8 +16,8 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-# Import shared functions module
-Import-Module (Join-Path $PSScriptRoot 'functions.psd1')
+# Import shared helper functions (Write-LogEntry, etc.)
+. (Join-Path $PSScriptRoot 'helpers.ps1')
 
 # ============================
 # Constants

@@ -77,7 +77,14 @@ function Invoke-PackageAction {
             }
             if ($mgr -eq 'WinGet' -and $winget -and $p.wingetId) {
                 try {
-                    if ($Action -eq 'Install') { winget install --id $p.wingetId --silent --accept-package-agreements --accept-source-agreements | Out-Null } else { winget uninstall --id $p.wingetId --silent | Out-Null }
+                    # --exact + --source pin the match to one specific package id on the official
+                    # winget source. Without --exact, --id does a case-insensitive substring match
+                    # (e.g. "Discord.Discord" also matches "Discord.Discord.Canary",
+                    # "Discord.Discord.PTB", etc.) — winget currently prefers an exact hit among
+                    # fuzzy matches when one exists, but that's ranking behavior, not a contract,
+                    # and it silently stops protecting you the moment an id has no exact match
+                    # (renamed package, or another source added later with an overlapping id).
+                    if ($Action -eq 'Install') { winget install --id $p.wingetId --exact --source winget --silent --accept-package-agreements --accept-source-agreements | Out-Null } else { winget uninstall --id $p.wingetId --exact --source winget --silent | Out-Null }
                     $did = $true; break
                 } catch { Write-LogEntry "$mgr failed for $($p.Name): $_" 'WARN' }
             }

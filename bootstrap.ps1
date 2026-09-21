@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 <#
 Single-entry bootstrap with subcommands: install (default), uninstall, office, test, fetch
 
@@ -11,7 +11,7 @@ Examples:
   .\bootstrap.ps1 -SkipDebloat         # install without removing bloatware
 #>
 
-[CmdletBinding()]
+[CmdletBinding(SupportsShouldProcess)]
 param(
     [ValidateSet('install','uninstall','office','test','fetch')]
     [string] $Action = 'install',
@@ -27,6 +27,14 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+
+# Fail fast with a clear message on a locked-down/managed machine (AppLocker, WDAC, Device
+# Guard) instead of hitting confusing errors deep into the script (e.g. from Add-Type or
+# ConvertFrom-Json, which behave differently or are blocked outside FullLanguage mode).
+if ($ExecutionContext.SessionState.LanguageMode -ne 'FullLanguage') {
+    Write-Error "PowerShell execution is restricted by a security policy (LanguageMode: $($ExecutionContext.SessionState.LanguageMode)) — this script requires FullLanguage mode."
+    exit 1
+}
 
 ## Determine script root (works when run locally or via iwr|iex)
 if ($PSScriptRoot) { $ScriptRoot = $PSScriptRoot }
@@ -203,13 +211,13 @@ switch ($Action) {
 
     'uninstall' {
         if (-not (Test-Administrator)) { Write-LogEntry 'Must run as Administrator to uninstall' 'ERROR'; exit 1 }
-        Invoke-PackageAction -Action Uninstall
+        Invoke-PackageAction -Action Uninstall -WhatIf:$WhatIfPreference -Confirm:$ConfirmPreference
     }
 
     'install' {
         if (-not $SkipDebloat) {
             if (-not (Test-Administrator)) { Write-LogEntry 'Debloat requires Administrator' 'ERROR'; exit 1 }
-            Invoke-Debloat
+            Invoke-Debloat -WhatIf:$WhatIfPreference -Confirm:$ConfirmPreference
         }
 
         if (-not $SkipPackages) {
@@ -218,7 +226,7 @@ switch ($Action) {
                 Write-LogEntry 'Chocolatey missing, attempting install' 'INFO'
                 Install-Chocolatey | Out-Null
             }
-            Invoke-PackageAction -Action Install
+            Invoke-PackageAction -Action Install -WhatIf:$WhatIfPreference -Confirm:$ConfirmPreference
         }
 
         if (-not $SkipOffice) { if (Test-Path (Join-Path $ScriptRoot 'office.ps1')) { & (Join-Path $ScriptRoot 'office.ps1') } }

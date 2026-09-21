@@ -1,4 +1,4 @@
-Set-StrictMode -Version Latest
+﻿Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 # Invoke-FileDownload, Expand-ArchiveIfNeeded and Invoke-FetchLatestRelease live in bootstrap.ps1 —
@@ -48,6 +48,7 @@ function Install-Chocolatey {
 }
 
 function Invoke-PackageAction {
+    [CmdletBinding(SupportsShouldProcess)]
     param(
         [ValidateSet('Install','Uninstall')][string]$Action,
         [string]$PackagesJson = (Join-Path $PSScriptRoot 'packages.json')
@@ -61,11 +62,15 @@ function Invoke-PackageAction {
     $winget = Test-PackageManagerAvailable -PackageManager WinGet
 
     $failed = @()
+    $attempted = 0
     $i = 0
     foreach ($p in $packages) {
         $i++
         $pct = [math]::Round(($i / $packages.Count) * 100)
         Write-Progress -Activity "$Action Packages" -Status "$($p.Name) ($i/$($packages.Count))" -PercentComplete $pct
+
+        if (-not $PSCmdlet.ShouldProcess($p.Name, "$Action package")) { continue }
+        $attempted++
 
         $did = $false
         foreach ($mgr in $preferred) {
@@ -95,18 +100,36 @@ function Invoke-PackageAction {
     Write-Progress -Activity "$Action Packages" -Completed
 
     if ($failed.Count) { Write-LogEntry "$Action failed: $($failed -join ', ')" 'WARN' }
-    Write-LogEntry "$Action completed. Failed: $($failed.Count) / $($packages.Count)"
+    Write-LogEntry "$Action completed. Failed: $($failed.Count) / $attempted attempted ($($packages.Count) total)"
 }
 
 function Invoke-Debloat {
+    [CmdletBinding(SupportsShouldProcess)]
     param([string]$UninstallListJson = (Join-Path $PSScriptRoot 'uninstallList.json'))
+
+    # Get-AppxPackage/Remove-AppxPackage are backed by a binary module that's historically been
+    # Windows-PowerShell-only; on some Windows/PowerShell 7 combinations only a limited
+    # compatibility-proxy version loads (returning deserialized objects that don't bind the same
+    # way), which fails unpredictably mid-removal instead of cleanly. Detect that up front rather
+    # than logging a wall of per-app failures.
+    $appxCmd = Get-Command Get-AppxPackage -ErrorAction SilentlyContinue
+    if (-not $appxCmd -or $appxCmd.CommandType -ne 'Cmdlet') {
+        Write-LogEntry 'Get-AppxPackage is not available as a native cmdlet in this PowerShell session (seen on some Windows versions under PowerShell 7) — skipping debloat. Re-run under Windows PowerShell (powershell.exe) if you need this step.' 'WARN'
+        return
+    }
+
     if (-not (Test-Path $UninstallListJson)) { Write-LogEntry 'uninstallList.json not found, skipping debloat' 'WARN'; return }
     $entries = Get-Content $UninstallListJson -Raw | ConvertFrom-Json
+    $processed = 0
     $i = 0
     foreach ($entry in $entries) {
         $i++
         $pct = [math]::Round(($i / $entries.Count) * 100)
         Write-Progress -Activity 'Removing bloatware' -Status $entry.Name -PercentComplete $pct
+
+        if (-not $PSCmdlet.ShouldProcess($entry.Name, 'Remove bloatware app')) { continue }
+        $processed++
+
         try {
             $pkg = Get-AppxPackage -Name $entry.AppxPackage -AllUsers -ErrorAction SilentlyContinue
             if ($pkg) {
@@ -120,7 +143,7 @@ function Invoke-Debloat {
         catch { Write-LogEntry "Failed to remove $($entry.Name): $_" 'WARN' }
     }
     Write-Progress -Activity 'Removing bloatware' -Completed
-    Write-LogEntry "Debloat completed ($($entries.Count) entries processed)"
+    Write-LogEntry "Debloat completed ($processed / $($entries.Count) entries processed)"
 }
 
 function Backup-ExistingItem {

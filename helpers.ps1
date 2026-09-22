@@ -1,7 +1,7 @@
 ﻿Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-# Invoke-FileDownload, Expand-ArchiveIfNeeded and Invoke-FetchLatestRelease live in bootstrap.ps1 —
+# Invoke-FileDownload, Expand-ArchiveIfNeeded and Invoke-FetchLatestRelease live in bootstrap.ps1 -
 # they're needed before helpers.ps1 can be dot-sourced there (e.g. the standalone iwr|iex flow).
 # Write-LogEntry is defined in both files: bootstrap.ps1 needs it before helpers.ps1 loads, and
 # office.ps1 dot-sources this file directly (not bootstrap.ps1), so it needs its own copy too.
@@ -50,7 +50,6 @@ function Install-Chocolatey {
 function Invoke-PackageAction {
     [CmdletBinding(SupportsShouldProcess)]
     param(
-        [ValidateSet('Install','Uninstall')][string]$Action,
         [string]$PackagesJson = (Join-Path $PSScriptRoot 'packages.json')
     )
 
@@ -67,16 +66,16 @@ function Invoke-PackageAction {
     foreach ($p in $packages) {
         $i++
         $pct = [math]::Round(($i / $packages.Count) * 100)
-        Write-Progress -Activity "$Action Packages" -Status "$($p.Name) ($i/$($packages.Count))" -PercentComplete $pct
+        Write-Progress -Activity 'Install Packages' -Status "$($p.Name) ($i/$($packages.Count))" -PercentComplete $pct
 
-        if (-not $PSCmdlet.ShouldProcess($p.Name, "$Action package")) { continue }
+        if (-not $PSCmdlet.ShouldProcess($p.Name, 'Install package')) { continue }
         $attempted++
 
         $did = $false
         foreach ($mgr in $preferred) {
             if ($mgr -eq 'Chocolatey' -and $choco -and $p.chocoId) {
                 try {
-                    if ($Action -eq 'Install') { choco install $p.chocoId -y --no-progress | Out-Null } else { choco uninstall $p.chocoId -y | Out-Null }
+                    choco install $p.chocoId -y --no-progress | Out-Null
                     $did = $true; break
                 } catch { Write-LogEntry "$mgr failed for $($p.Name): $_" 'WARN' }
             }
@@ -85,11 +84,14 @@ function Invoke-PackageAction {
                     # --exact + --source pin the match to one specific package id on the official
                     # winget source. Without --exact, --id does a case-insensitive substring match
                     # (e.g. "Discord.Discord" also matches "Discord.Discord.Canary",
-                    # "Discord.Discord.PTB", etc.) — winget currently prefers an exact hit among
+                    # "Discord.Discord.PTB", etc.) - winget currently prefers an exact hit among
                     # fuzzy matches when one exists, but that's ranking behavior, not a contract,
                     # and it silently stops protecting you the moment an id has no exact match
                     # (renamed package, or another source added later with an overlapping id).
-                    if ($Action -eq 'Install') { winget install --id $p.wingetId --exact --source winget --silent --accept-package-agreements --accept-source-agreements | Out-Null } else { winget uninstall --id $p.wingetId --exact --source winget --silent | Out-Null }
+                    # --accept-*-agreements only covers those two specific agreement prompts;
+                    # --disable-interactivity is the broader "don't ask me anything" flag that
+                    # also covers other interactive prompts winget can show per-package.
+                    winget install --id $p.wingetId --exact --source winget --silent --accept-package-agreements --accept-source-agreements --disable-interactivity | Out-Null
                     $did = $true; break
                 } catch { Write-LogEntry "$mgr failed for $($p.Name): $_" 'WARN' }
             }
@@ -97,10 +99,10 @@ function Invoke-PackageAction {
 
         if (-not $did) { $failed += $p.Name }
     }
-    Write-Progress -Activity "$Action Packages" -Completed
+    Write-Progress -Activity 'Install Packages' -Completed
 
-    if ($failed.Count) { Write-LogEntry "$Action failed: $($failed -join ', ')" 'WARN' }
-    Write-LogEntry "$Action completed. Failed: $($failed.Count) / $attempted attempted ($($packages.Count) total)"
+    if ($failed.Count) { Write-LogEntry "Install failed: $($failed -join ', ')" 'WARN' }
+    Write-LogEntry "Install completed. Failed: $($failed.Count) / $attempted attempted ($($packages.Count) total)"
 }
 
 function Invoke-Debloat {
@@ -114,7 +116,7 @@ function Invoke-Debloat {
     # than logging a wall of per-app failures.
     $appxCmd = Get-Command Get-AppxPackage -ErrorAction SilentlyContinue
     if (-not $appxCmd -or $appxCmd.CommandType -ne 'Cmdlet') {
-        Write-LogEntry 'Get-AppxPackage is not available as a native cmdlet in this PowerShell session (seen on some Windows versions under PowerShell 7) — skipping debloat. Re-run under Windows PowerShell (powershell.exe) if you need this step.' 'WARN'
+        Write-LogEntry 'Get-AppxPackage is not available as a native cmdlet in this PowerShell session (seen on some Windows versions under PowerShell 7) - skipping debloat. Re-run under Windows PowerShell (powershell.exe) if you need this step.' 'WARN'
         return
     }
 

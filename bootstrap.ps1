@@ -1,19 +1,18 @@
-﻿#Requires -Version 5.1
+#Requires -Version 5.1
 <#
-Single-entry bootstrap with subcommands: install (default), uninstall, office, test, fetch
+Single-entry bootstrap with subcommands: install (default), office, test, fetch
 
 Works with the Windows PowerShell 5.1 that ships with Windows, no PowerShell 7 (pwsh) required.
 
 Examples:
   .\bootstrap.ps1                      # runs install
-  .\bootstrap.ps1 -Action uninstall
   .\bootstrap.ps1 -Action fetch -DownloadPath C:\tmp
   .\bootstrap.ps1 -SkipDebloat         # install without removing bloatware
 #>
 
 [CmdletBinding(SupportsShouldProcess)]
 param(
-    [ValidateSet('install','uninstall','office','test','fetch')]
+    [ValidateSet('install','office','test','fetch')]
     [string] $Action = 'install',
 
     [switch] $SkipPackages,
@@ -32,19 +31,27 @@ $ErrorActionPreference = 'Stop'
 # Guard) instead of hitting confusing errors deep into the script (e.g. from Add-Type or
 # ConvertFrom-Json, which behave differently or are blocked outside FullLanguage mode).
 if ($ExecutionContext.SessionState.LanguageMode -ne 'FullLanguage') {
-    Write-Error "PowerShell execution is restricted by a security policy (LanguageMode: $($ExecutionContext.SessionState.LanguageMode)) — this script requires FullLanguage mode."
+    Write-Error "PowerShell execution is restricted by a security policy (LanguageMode: $($ExecutionContext.SessionState.LanguageMode)) - this script requires FullLanguage mode."
     exit 1
 }
 
-## Determine script root (works when run locally or via iwr|iex)
+## Determine script root (works when run locally, via -File, or as an in-memory scriptblock via
+## iex / [scriptblock]::Create()+&). In the in-memory case $MyInvocation.MyCommand is a real
+## System.Management.Automation.ScriptInfo object (not null) that simply has no .Path property at
+## all, and Set-StrictMode's PropertyNotFoundStrict fires on that regardless of null-ness - so this
+## is wrapped in try/catch rather than a truthiness check, to tolerate whatever shape .MyCommand
+## turns out to have in a given invocation context.
+$ScriptRoot = $null
 if ($PSScriptRoot) { $ScriptRoot = $PSScriptRoot }
-elseif ($MyInvocation.MyCommand.Path) { $ScriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path }
-else { $ScriptRoot = (Get-Location).Path }
+if (-not $ScriptRoot) {
+    try { if ($MyInvocation.MyCommand.Path) { $ScriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path } } catch {}
+}
+if (-not $ScriptRoot) { $ScriptRoot = (Get-Location).Path }
 
 # Functions needed regardless of whether this script is running from a local checkout
-# or standalone (e.g. via iwr|iex, where only this file exists on disk — no helpers.ps1
+# or standalone (e.g. via iwr|iex, where only this file exists on disk - no helpers.ps1
 # alongside it yet). Defined here, before first use, since helpers.ps1 isn't available yet.
-# Write-LogEntry is duplicated in helpers.ps1 for office.ps1's benefit — see the comment there.
+# Write-LogEntry is duplicated in helpers.ps1 for office.ps1's benefit - see the comment there.
 function Write-LogEntry {
     param([string]$Message, [string]$Level = 'INFO')
     $ts = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
@@ -91,7 +98,7 @@ if (Test-Path (Join-Path $ScriptRoot 'helpers.ps1')) {
 }
 else {
     # Remote bootstrap behavior: download latest release and execute setup.ps1 from it
-    Write-LogEntry 'helpers.ps1 not found locally — running remote bootstrap (download latest release)'
+    Write-LogEntry 'helpers.ps1 not found locally - running remote bootstrap (download latest release)'
 
     $asset = Invoke-FetchLatestRelease
     $zipPath = Join-Path $DownloadPath $asset.Name
@@ -126,12 +133,12 @@ else {
 # If an action requires elevation, relaunch elevated when not running as administrator.
 # 'office' needs it too: the Office Deployment Tool's /extract and /configure steps fail with
 # "the requested operation requires elevation" when run as a standard user.
-$needsElevation = $Action -in @('install','uninstall','office')
+$needsElevation = $Action -in @('install','office')
 if ($needsElevation -and -not (Test-Administrator)) {
-    Write-LogEntry 'Not running as Administrator — relaunching elevated' 'INFO'
+    Write-LogEntry 'Not running as Administrator - relaunching elevated' 'INFO'
 
     # Relaunch with whichever PowerShell host is already running this script (Windows PowerShell
-    # 5.1 or pwsh) rather than assuming pwsh is installed — the script only needs 5.1+.
+    # 5.1 or pwsh) rather than assuming pwsh is installed - the script only needs 5.1+.
     $hostExe = (Get-Process -Id $PID -ErrorAction SilentlyContinue).Path
     if (-not $hostExe) { $hostExe = (Get-Command powershell -ErrorAction SilentlyContinue).Source }
     if (-not $hostExe) { $hostExe = (Get-Command pwsh -ErrorAction SilentlyContinue).Source }
@@ -209,11 +216,6 @@ switch ($Action) {
         }
     }
 
-    'uninstall' {
-        if (-not (Test-Administrator)) { Write-LogEntry 'Must run as Administrator to uninstall' 'ERROR'; exit 1 }
-        Invoke-PackageAction -Action Uninstall -WhatIf:$WhatIfPreference -Confirm:$ConfirmPreference
-    }
-
     'install' {
         if (-not $SkipDebloat) {
             if (-not (Test-Administrator)) { Write-LogEntry 'Debloat requires Administrator' 'ERROR'; exit 1 }
@@ -226,7 +228,7 @@ switch ($Action) {
                 Write-LogEntry 'Chocolatey missing, attempting install' 'INFO'
                 Install-Chocolatey | Out-Null
             }
-            Invoke-PackageAction -Action Install -WhatIf:$WhatIfPreference -Confirm:$ConfirmPreference
+            Invoke-PackageAction -WhatIf:$WhatIfPreference -Confirm:$ConfirmPreference
         }
 
         if (-not $SkipOffice) { if (Test-Path (Join-Path $ScriptRoot 'office.ps1')) { & (Join-Path $ScriptRoot 'office.ps1') } }
